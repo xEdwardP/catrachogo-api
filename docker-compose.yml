@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    restart: always
+    environment:
+      POSTGRES_USER: catrachogo
+      POSTGRES_PASSWORD: catrachogo_dev
+      POSTGRES_DB: catrachogo
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  api:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    env_file: .env
+volumes:
+  db_data:
