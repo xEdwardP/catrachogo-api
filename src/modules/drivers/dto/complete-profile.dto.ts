@@ -1,4 +1,4 @@
-import { IsString, IsEnum, ValidateNested } from 'class-validator';
+import { IsString, IsInt, IsEnum, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum VehicleType {
@@ -7,15 +7,15 @@ export enum VehicleType {
 }
 
 class VehicleDto {
-  @IsString() brand: string;
-  @IsString() model: string;
-  year: number;
-  @IsString() color: string;
-  @IsString() plate: string;
+  @IsString() brand!: string;
+  @IsString() model!: string;
+  @IsInt() year!: number;
+  @IsString() color!: string;
+  @IsString() plate!: string;
 }
 
 export class CompleteProfileDto {
-  @IsEnum(VehicleType) vehicleType: VehicleType;
-  @IsString() licenseNumber: string;
-  @ValidateNested() @Type(() => VehicleDto) vehicle: VehicleDto;
+  @IsEnum(VehicleType) vehicleType!: VehicleType;
+  @IsString() licenseNumber!: string;
+  @ValidateNested() @Type(() => VehicleDto) vehicle!: VehicleDto;
 }
