@@ -14,6 +14,7 @@ import { FareCalculationService } from './fare-calculation.service';
 import { EstimateTripDto } from './dto/estimate-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { DriversService } from '../drivers/drivers.service';
+import { Query } from 'node_modules/@types/pg/index.mjs';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('trips')
@@ -68,6 +69,20 @@ export class TripsController {
     return this.tripsService.cancelTrip(id, req.user.userId);
   }
 
+  @Get('history')
+  getHistory(
+    @Request() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.tripsService.getHistory(
+      req.user.userId,
+      req.user.role,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
+  }
+
   @Get(':id')
   getDetail(@Request() req, @Param('id') id: string) {
     return this.tripsService.getTripDetail(id, req.user.userId, req.user.role);
@@ -76,5 +91,13 @@ export class TripsController {
   @Get(':id/driver-location')
   getDriverLocation(@Param('id') id: string) {
     return this.tripsService.getDriverLocationForTrip(id);
+  }
+
+  @Patch(':id/complete')
+  async complete(@Request() req, @Param('id') id: string) {
+    const driverId = await this.driversService.getDriverIdByUserId(
+      req.user.userId,
+    );
+    return this.tripsService.completeTrip(id, driverId);
   }
 }
