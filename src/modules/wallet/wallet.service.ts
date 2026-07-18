@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaypalService } from './paypal.service';
-import { paginationParams } from 'src/common/utils/pagination.util';
+import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class WalletService {

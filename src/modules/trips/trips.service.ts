@@ -13,7 +13,7 @@ import { TripCandidatesCache } from '../matching/trip-candidates.cache';
 import { DriversService } from '../drivers/drivers.service';
 import { TrackingService } from '../tracking/tracking.service';
 import { CreateTripDto } from './dto/create-trip.dto';
-import { paginationParams } from 'src/common/utils/pagination.util';
+import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class TripsService {

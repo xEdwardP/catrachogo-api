@@ -5,6 +5,7 @@ import {
   Get,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -14,7 +15,6 @@ import { FareCalculationService } from './fare-calculation.service';
 import { EstimateTripDto } from './dto/estimate-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { DriversService } from '../drivers/drivers.service';
-import { Query } from 'node_modules/@types/pg/index.mjs';
 
 @UseGuards(AuthGuard('jwt'))
 @Controller('trips')
