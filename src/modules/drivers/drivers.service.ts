@@ -1,21 +1,31 @@
-import { Injectable, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 
 @Injectable()
 export class DriversService {
-  constructor(private prisma: PrismaService, private candidatesCache: TripCandidatesCache) {}
+  constructor(
+    private prisma: PrismaService,
+    private candidatesCache: TripCandidatesCache,
+  ) {}
 
   async getDriverIdByUserId(userId: string): Promise<string> {
     const driver = await this.prisma.driver.findUnique({ where: { userId } });
-    if (!driver) throw new ForbiddenException('User is not a registered driver');
+    if (!driver)
+      throw new ForbiddenException('User is not a registered driver');
     return driver.id;
   }
 
   async completeProfile(userId: string, dto: CompleteProfileDto) {
     const existing = await this.prisma.driver.findUnique({ where: { userId } });
-    if (existing) throw new ConflictException('Driver profile already completed');
+    if (existing)
+      throw new ConflictException('Driver profile already completed');
 
     return this.prisma.driver.create({
       data: {
@@ -28,10 +38,18 @@ export class DriversService {
   }
 
   async updateAvailability(driverId: string, available: boolean) {
-    return this.prisma.driver.update({ where: { id: driverId }, data: { available } });
+    return this.prisma.driver.update({
+      where: { id: driverId },
+      data: { available },
+    });
   }
 
-  async findNearby(lat: number, lng: number, radiusKm = 5, limit = 5): Promise<string[]> {
+  async findNearby(
+    lat: number,
+    lng: number,
+    radiusKm = 5,
+    limit = 5,
+  ): Promise<string[]> {
     const rows = await this.prisma.$queryRaw<{ driver_id: string }[]>`
       SELECT DISTINCT ON (d.id) d.id AS driver_id
       FROM drivers d
@@ -52,7 +70,10 @@ export class DriversService {
     const tripId = this.candidatesCache.getPendingFor(driverId);
     if (!tripId) return null;
 
-    const trip = await this.prisma.trip.findUnique({ where: { id: tripId }, include: { passenger: true } });
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { passenger: true },
+    });
     if (!trip || trip.status !== 'pending') return null;
 
     return {
@@ -65,11 +86,16 @@ export class DriversService {
   }
 
   async getSummary(driverId: string) {
-    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
     const [aggregate, driver] = await Promise.all([
       this.prisma.trip.aggregate({
-        where: { driverId, status: 'completed', completedAt: { gte: startOfDay } },
+        where: {
+          driverId,
+          status: 'completed',
+          completedAt: { gte: startOfDay },
+        },
         _sum: { fare: true },
         _count: true,
       }),
@@ -96,5 +122,23 @@ export class DriversService {
       averageRating: Number(driver.averageRating ?? 0),
       vehicle: driver.vehicles[0] ?? null,
     };
+  }
+
+  async listByStatus(status?: string) {
+    return this.prisma.driver.findMany({
+      where: status ? { verificationStatus: status as any } : {},
+      include: { user: true, vehicles: true },
+      orderBy: { userId: 'asc' },
+    });
+  }
+
+  async updateVerification(driverId: string, status: 'approved' | 'rejected') {
+    return this.prisma.driver.update({
+      where: { id: driverId },
+      data: {
+        verificationStatus: status,
+        approvedAt: status === 'approved' ? new Date() : null,
+      },
+    });
   }
 }
