@@ -10,6 +10,6 @@ import { MatchingModule } from '../matching/matching.module';
   imports: [DriversModule, TrackingModule, MatchingModule],
   controllers: [TripsController],
   providers: [TripsService, FareCalculationService],
-  exports: [MatchingModule],
+  exports: [MatchingModule, TripsService],
 })
 export class TripsModule {}
