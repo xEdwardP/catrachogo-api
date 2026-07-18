@@ -47,7 +47,13 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !(await argon2.verify(user.passwordHash, password))) {
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'This account uses Google Sign-In, not a password',
+      );
+    }
+    if (!(await argon2.verify(user.passwordHash, password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
     const token = this.jwt.sign({ sub: user.id, role: user.role });
@@ -68,5 +74,54 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('User not found');
     return user;
+  }
+
+  async loginWithGoogle(googlePayload: {
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+  }) {
+    let user = await this.prisma.user.findUnique({
+      where: { googleId: googlePayload.googleId },
+    });
+
+    if (!user) {
+      const existingByEmail = await this.prisma.user.findUnique({
+        where: { email: googlePayload.email },
+      });
+
+      user = existingByEmail
+        ? await this.prisma.user.update({
+            where: { id: existingByEmail.id },
+            data: {
+              googleId: googlePayload.googleId,
+              profilePhotoUrl:
+                existingByEmail.profilePhotoUrl ?? googlePayload.picture,
+            },
+          })
+        : await this.prisma.user.create({
+            data: {
+              name: googlePayload.name,
+              email: googlePayload.email,
+              phone: '',
+              googleId: googlePayload.googleId,
+              profilePhotoUrl: googlePayload.picture,
+              role: 'passenger',
+              wallet: { create: { balance: 0 } },
+            },
+          });
+    }
+
+    const token = this.jwt.sign({ sub: user.id, role: user.role });
+    return { token, user: { id: user.id, name: user.name, role: user.role } };
+  }
+
+  async updateProfilePhoto(userId: string, profilePhotoUrl: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilePhotoUrl },
+    });
+    return { profilePhotoUrl: user.profilePhotoUrl };
   }
 }
