@@ -1,11 +1,36 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { TripsModule } from './modules/trips/trips.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
+import { DriversModule } from './modules/drivers/drivers.module';
+import { MatchingModule } from './modules/matching/matching.module';
+import { WalletModule } from './modules/wallet/wallet.module';
+import { RatingsModule } from './modules/ratings/ratings.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { FareZonesModule } from './modules/fare-zones/fare-zones.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+    PrismaModule,
+    AuthModule,
+    TripsModule,
+    TrackingModule,
+    DriversModule,
+    MatchingModule,
+    WalletModule,
+    RatingsModule,
+    AdminModule,
+    FareZonesModule,
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
