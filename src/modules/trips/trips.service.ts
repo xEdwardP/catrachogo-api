@@ -7,6 +7,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FareCalculationService } from './fare-calculation.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
@@ -24,6 +25,27 @@ export class TripsService {
     private candidatesCache: TripCandidatesCache,
     private tracking: TrackingService,
   ) {}
+
+  private toTripNumbers<
+    T extends {
+      fare: Prisma.Decimal;
+      distanceKm: Prisma.Decimal;
+      originLat: Prisma.Decimal;
+      originLng: Prisma.Decimal;
+      destinationLat: Prisma.Decimal;
+      destinationLng: Prisma.Decimal;
+    },
+  >(trip: T) {
+    return {
+      ...trip,
+      fare: Number(trip.fare),
+      distanceKm: Number(trip.distanceKm),
+      originLat: Number(trip.originLat),
+      originLng: Number(trip.originLng),
+      destinationLat: Number(trip.destinationLat),
+      destinationLng: Number(trip.destinationLng),
+    };
+  }
 
   async createTrip(passengerId: string, dto: CreateTripDto) {
     const passenger = await this.prisma.user.findUnique({
@@ -73,7 +95,7 @@ export class TripsService {
     );
     this.candidatesCache.set(trip.id, nearbyDriverIds);
 
-    return trip;
+    return this.toTripNumbers(trip);
   }
 
   async acceptTrip(tripId: string, driverId: string) {
@@ -91,7 +113,8 @@ export class TripsService {
     }
 
     this.candidatesCache.clear(tripId);
-    return this.prisma.trip.findUnique({ where: { id: tripId } });
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    return this.toTripNumbers(trip!);
   }
 
   async rejectTrip(tripId: string, driverId: string) {
@@ -106,10 +129,11 @@ export class TripsService {
     if (trip.status !== 'accepted')
       throw new BadRequestException('Trip must be accepted first');
 
-    return this.prisma.trip.update({
+    const updated = await this.prisma.trip.update({
       where: { id: tripId },
       data: { status: 'in_progress', startedAt: new Date() },
     });
+    return this.toTripNumbers(updated);
   }
 
   async cancelTrip(tripId: string, requesterId: string) {
@@ -130,10 +154,11 @@ export class TripsService {
     }
 
     this.candidatesCache.clear(tripId);
-    return this.prisma.trip.update({
+    const updated = await this.prisma.trip.update({
       where: { id: tripId },
       data: { status: 'cancelled' },
     });
+    return this.toTripNumbers(updated);
   }
 
   async getTripDetail(
@@ -143,7 +168,10 @@ export class TripsService {
   ) {
     const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
-      include: { passenger: true, driver: { include: { user: true } } },
+      include: {
+        passenger: true,
+        driver: { include: { user: true, vehicles: true } },
+      },
     });
     if (!trip) throw new NotFoundException();
 
@@ -156,13 +184,37 @@ export class TripsService {
     const includePhones =
       isParticipant && ['accepted', 'in_progress'].includes(trip.status);
 
+    const ratedByMe = isParticipant
+      ? (await this.prisma.rating.findFirst({
+          where: { tripId: trip.id, raterId: requesterId },
+          select: { id: true },
+        })) !== null
+      : false;
+
     return {
       id: trip.id,
       status: trip.status,
       fare: Number(trip.fare),
       distanceKm: Number(trip.distanceKm),
+      originAddress: trip.originAddress,
+      originLat: Number(trip.originLat),
+      originLng: Number(trip.originLng),
+      destinationAddress: trip.destinationAddress,
+      destinationLat: Number(trip.destinationLat),
+      destinationLng: Number(trip.destinationLng),
+      driverId: trip.driverId,
+      ratedByMe,
       ...(includePhones && trip.driver
-        ? { driverPhone: trip.driver.user.phone }
+        ? {
+            driverPhone: trip.driver.user.phone,
+            driver: {
+              id: trip.driver.id,
+              name: trip.driver.user.name,
+              profilePhotoUrl: trip.driver.user.profilePhotoUrl,
+              averageRating: Number(trip.driver.averageRating ?? 0),
+              vehicle: trip.driver.vehicles[0] ?? null,
+            },
+          }
         : {}),
       ...(includePhones ? { passengerPhone: trip.passenger.phone } : {}),
     };
@@ -235,11 +287,16 @@ export class TripsService {
       this.prisma.trip.count({ where }),
     ]);
 
+    const ratings = await this.prisma.rating.findMany({
+      where: { raterId: userId, tripId: { in: trips.map((t) => t.id) } },
+      select: { tripId: true },
+    });
+    const ratedTripIds = new Set(ratings.map((r) => r.tripId));
+
     return {
       data: trips.map((t) => ({
-        ...t,
-        fare: Number(t.fare),
-        distanceKm: Number(t.distanceKm),
+        ...this.toTripNumbers(t),
+        ratedByMe: ratedTripIds.has(t.id),
       })),
       total,
       page,
@@ -262,11 +319,7 @@ export class TripsService {
     ]);
 
     return {
-      data: trips.map((t) => ({
-        ...t,
-        fare: Number(t.fare),
-        distanceKm: Number(t.distanceKm),
-      })),
+      data: trips.map((t) => this.toTripNumbers(t)),
       total,
       page,
       limit,

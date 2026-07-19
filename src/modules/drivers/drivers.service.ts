@@ -140,6 +140,7 @@ export class DriversService {
     return {
       id: driver.id,
       name: driver.user.name,
+      profilePhotoUrl: driver.user.profilePhotoUrl,
       averageRating: Number(driver.averageRating ?? 0),
       vehicle: driver.vehicles[0] ?? null,
     };

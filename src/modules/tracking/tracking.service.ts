@@ -10,9 +10,15 @@ export class TrackingService {
   }
 
   async getLastLocationForTrip(tripId: string) {
-    return this.prisma.locationTracking.findFirst({
+    const location = await this.prisma.locationTracking.findFirst({
       where: { tripId },
       orderBy: { recordedAt: 'desc' },
     });
+    if (!location) return null;
+    return {
+      lat: Number(location.lat),
+      lng: Number(location.lng),
+      recordedAt: location.recordedAt,
+    };
   }
 }
