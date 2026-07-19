@@ -26,6 +26,15 @@ export class TripsService {
   ) {}
 
   async createTrip(passengerId: string, dto: CreateTripDto) {
+    const passenger = await this.prisma.user.findUnique({
+      where: { id: passengerId },
+    });
+    if (!passenger?.phone) {
+      throw new BadRequestException(
+        'Please add a phone number before requesting a trip',
+      );
+    }
+
     const { distanceKm, fare } = await this.fareCalc.estimate(
       dto.originLat,
       dto.originLng,

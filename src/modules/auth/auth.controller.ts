@@ -15,6 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { GoogleAuthService } from './google-auth.service';
 import { UpdateProfilePhotoDto } from './dto/update-profile-photo.dto';
+import { CompletePhoneDto } from './dto/complete-phone.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -48,6 +49,12 @@ export class AuthController {
       req.user.userId,
       dto.profilePhotoUrl,
     );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('phone')
+  completePhone(@Request() req, @Body() dto: CompletePhoneDto) {
+    return this.authService.completePhone(req.user.userId, dto.phone);
   }
 
   @UseGuards(AuthGuard('jwt'))
