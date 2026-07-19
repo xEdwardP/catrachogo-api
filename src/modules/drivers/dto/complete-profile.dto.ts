@@ -1,5 +1,6 @@
-import { IsString, IsInt, IsEnum, IsUrl, ValidateNested } from 'class-validator';
+import { IsString, IsInt, IsEnum, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsCloudinaryUrl } from '../../../common/validators/is-cloudinary-url';
 
 export enum VehicleType {
   car = 'car',
@@ -19,9 +20,9 @@ export class CompleteProfileDto {
   @IsString() licenseNumber!: string;
   @ValidateNested() @Type(() => VehicleDto) vehicle!: VehicleDto;
 
-  @IsUrl() idFrontUrl!: string;
-  @IsUrl() idBackUrl!: string;
-  @IsUrl() vehicleRegistrationUrl!: string;
-  @IsUrl() selfieWithIdUrl!: string;
-  @IsUrl() profilePhotoUrl!: string;
+  @IsCloudinaryUrl() idFrontUrl!: string;
+  @IsCloudinaryUrl() idBackUrl!: string;
+  @IsCloudinaryUrl() vehicleRegistrationUrl!: string;
+  @IsCloudinaryUrl() selfieWithIdUrl!: string;
+  @IsCloudinaryUrl() profilePhotoUrl!: string;
 }

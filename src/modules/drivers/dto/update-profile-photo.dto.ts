@@ -1,5 +1,5 @@
-import { IsUrl } from 'class-validator';
+import { IsCloudinaryUrl } from '../../../common/validators/is-cloudinary-url';
 
 export class UpdateProfilePhotoDto {
-  @IsUrl() profilePhotoUrl!: string;
+  @IsCloudinaryUrl() profilePhotoUrl!: string;
 }

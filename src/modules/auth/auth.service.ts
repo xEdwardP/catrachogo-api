@@ -104,7 +104,7 @@ export class AuthService {
             data: {
               name: googlePayload.name,
               email: googlePayload.email,
-              phone: '',
+              phone: null,
               googleId: googlePayload.googleId,
               profilePhotoUrl: googlePayload.picture,
               role: 'passenger',
@@ -123,5 +123,17 @@ export class AuthService {
       data: { profilePhotoUrl },
     });
     return { profilePhotoUrl: user.profilePhotoUrl };
+  }
+
+  async completePhone(userId: string, phone: string) {
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    if (existing && existing.id !== userId) {
+      throw new ConflictException('Phone number already in use');
+    }
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { phone },
+    });
+    return { phone: user.phone };
   }
 }
