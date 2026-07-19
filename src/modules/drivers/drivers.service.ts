@@ -27,17 +27,38 @@ export class DriversService {
     if (existing)
       throw new ConflictException('Driver profile already completed');
 
-    return this.prisma.driver.create({
-      data: {
-        userId,
-        vehicleType: dto.vehicleType,
-        licenseNumber: dto.licenseNumber,
-        vehicles: { create: dto.vehicle },
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { profilePhotoUrl: dto.profilePhotoUrl },
+      });
+
+      return tx.driver.create({
+        data: {
+          userId,
+          vehicleType: dto.vehicleType,
+          licenseNumber: dto.licenseNumber,
+          idFrontUrl: dto.idFrontUrl,
+          idBackUrl: dto.idBackUrl,
+          vehicleRegistrationUrl: dto.vehicleRegistrationUrl,
+          selfieWithIdUrl: dto.selfieWithIdUrl,
+          vehicles: { create: dto.vehicle },
+        },
+      });
     });
   }
 
   async updateAvailability(driverId: string, available: boolean) {
+    if (available) {
+      const driver = await this.prisma.driver.findUnique({
+        where: { id: driverId },
+      });
+      if (driver?.verificationStatus !== 'approved') {
+        throw new ForbiddenException(
+          'Your documents must be approved before going online',
+        );
+      }
+    }
     return this.prisma.driver.update({
       where: { id: driverId },
       data: { available },

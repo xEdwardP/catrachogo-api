@@ -52,34 +52,40 @@ enum WithdrawalStatus {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  phone        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  phone           String?  @unique
+  passwordHash    String?  @map("password_hash")
+  googleId        String?  @unique @map("google_id")
+  profilePhotoUrl String?  @map("profile_photo_url")
+  role            Role
+  createdAt       DateTime @default(now()) @map("created_at")
+  isActive        Boolean  @default(true) @map("is_active")
 
   driver              Driver?
-  wallet               Wallet?
-  tripsAsPassenger     Trip[]              @relation("PassengerTrips")
-  ratingsGiven         Rating[]            @relation("RaterRatings")
-  ratingsReceived      Rating[]            @relation("RatedRatings")
-  resolvedWithdrawals  WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
+  wallet              Wallet?
+  tripsAsPassenger    Trip[]              @relation("PassengerTrips")
+  ratingsGiven        Rating[]            @relation("RaterRatings")
+  ratingsReceived     Rating[]            @relation("RatedRatings")
+  resolvedWithdrawals WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
 
   @@map("users")
 }
 
 model Driver {
-  id                 String              @id @default(uuid())
-  userId             String              @unique @map("user_id")
-  vehicleType        VehicleType         @map("vehicle_type")
-  licenseNumber      String              @map("license_number")
-  verificationStatus VerificationStatus  @default(pending) @map("verification_status")
-  averageRating      Decimal?            @map("average_rating") @db.Decimal(3, 2)
-  available          Boolean             @default(false)
-  approvedAt         DateTime?           @map("approved_at")
+  id                     String             @id @default(uuid())
+  userId                 String             @unique @map("user_id")
+  vehicleType            VehicleType        @map("vehicle_type")
+  licenseNumber          String             @map("license_number")
+  verificationStatus     VerificationStatus @default(pending) @map("verification_status")
+  averageRating          Decimal?           @map("average_rating") @db.Decimal(3, 2)
+  available              Boolean            @default(false)
+  approvedAt             DateTime?          @map("approved_at")
+  idFrontUrl             String             @map("id_front_url")
+  idBackUrl              String             @map("id_back_url")
+  vehicleRegistrationUrl String             @map("vehicle_registration_url")
+  selfieWithIdUrl        String             @map("selfie_with_id_url")
 
   user               User                @relation(fields: [userId], references: [id])
   vehicles           Vehicle[]

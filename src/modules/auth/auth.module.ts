@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { getEnvOrThrow } from '../../common/utils/env.util';
+import { GoogleAuthService } from './google-auth.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { getEnvOrThrow } from '../../common/utils/env.util';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleAuthService],
   exports: [JwtModule],
 })
 export class AuthModule {}

@@ -71,6 +71,11 @@ async function seedDrivers(count: number, passwordHash: string) {
         verificationStatus: 'approved',
         available: true,
         approvedAt: new Date(),
+        idFrontUrl: 'https://placehold.co/600x400?text=ID+Front',
+        idBackUrl: 'https://placehold.co/600x400?text=ID+Back',
+        vehicleRegistrationUrl:
+          'https://placehold.co/600x400?text=Vehicle+Registration',
+        selfieWithIdUrl: 'https://placehold.co/600x400?text=Selfie+with+ID',
         vehicles: {
           create: {
             brand: faker.vehicle.manufacturer(),
@@ -81,6 +86,11 @@ async function seedDrivers(count: number, passwordHash: string) {
           },
         },
       },
+    });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { profilePhotoUrl: faker.image.avatar() },
     });
 
     const center = faker.helpers.arrayElement(ZONE_CENTERS);
