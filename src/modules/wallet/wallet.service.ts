@@ -107,11 +107,12 @@ export class WalletService {
   }
 
   async listWithdrawals(status?: string) {
-    return this.prisma.withdrawalRequest.findMany({
+    const withdrawals = await this.prisma.withdrawalRequest.findMany({
       where: status ? { status: status as any } : {},
       orderBy: { requestedAt: 'desc' },
       include: { driver: { include: { user: true } } },
     });
+    return withdrawals.map((w) => ({ ...w, amount: Number(w.amount) }));
   }
 
   async resolveWithdrawal(

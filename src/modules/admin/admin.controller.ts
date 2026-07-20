@@ -12,6 +12,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { DriversService } from '../drivers/drivers.service';
 import { TripsService } from '../trips/trips.service';
+import { AdminService } from './admin.service';
 import { ResolveWithdrawalDto } from '../wallet/dto/resolve-withdrawal.dto';
 
 import { IsIn } from 'class-validator';
@@ -26,7 +27,13 @@ export class AdminController {
   constructor(
     private driversService: DriversService,
     private tripsService: TripsService,
+    private adminService: AdminService,
   ) {}
+
+  @Get('stats')
+  getStats() {
+    return this.adminService.getStats();
+  }
 
   @Get('drivers')
   listDrivers(@Query('status') status?: string) {

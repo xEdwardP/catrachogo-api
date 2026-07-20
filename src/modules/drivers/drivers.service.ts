@@ -148,11 +148,15 @@ export class DriversService {
   }
 
   async listByStatus(status?: string) {
-    return this.prisma.driver.findMany({
+    const drivers = await this.prisma.driver.findMany({
       where: status ? { verificationStatus: status as any } : {},
       include: { user: true, vehicles: true },
       orderBy: { userId: 'asc' },
     });
+    return drivers.map((d) => ({
+      ...d,
+      averageRating: Number(d.averageRating ?? 0),
+    }));
   }
 
   async updateVerification(driverId: string, status: 'approved' | 'rejected') {

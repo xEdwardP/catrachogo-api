@@ -106,7 +106,7 @@ export class TripsService {
     const result = await this.prisma.$executeRaw`
       UPDATE trips
       SET driver_id = ${driverId}, status = 'accepted'
-      WHERE id = ${tripId}::uuid AND status = 'pending' AND driver_id IS NULL
+      WHERE id = ${tripId} AND status = 'pending' AND driver_id IS NULL
     `;
     if (result === 0) {
       throw new ConflictException('Trip already taken by another driver');
@@ -217,7 +217,15 @@ export class TripsService {
             },
           }
         : {}),
-      ...(includePhones ? { passengerPhone: trip.passenger.phone } : {}),
+      ...(includePhones
+        ? {
+            passengerPhone: trip.passenger.phone,
+            passenger: {
+              name: trip.passenger.name,
+              profilePhotoUrl: trip.passenger.profilePhotoUrl,
+            },
+          }
+        : {}),
     };
   }
 
