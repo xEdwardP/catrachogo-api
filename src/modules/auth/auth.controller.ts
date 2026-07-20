@@ -24,13 +24,19 @@ export class AuthController {
     private googleAuthService: GoogleAuthService,
   ) {}
 
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({
+    short: { limit: 2, ttl: 1_000 },
+    medium: { limit: 10, ttl: 60_000 },
+  })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({
+    short: { limit: 2, ttl: 1_000 },
+    medium: { limit: 10, ttl: 60_000 },
+  })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);

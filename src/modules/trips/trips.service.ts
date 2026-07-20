@@ -209,6 +209,7 @@ export class TripsService {
             driverPhone: trip.driver.user.phone,
             driver: {
               id: trip.driver.id,
+              userId: trip.driver.userId,
               name: trip.driver.user.name,
               profilePhotoUrl: trip.driver.user.profilePhotoUrl,
               averageRating: Number(trip.driver.averageRating ?? 0),

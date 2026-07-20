@@ -18,7 +18,11 @@ import { FareZonesModule } from './modules/fare-zones/fare-zones.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1_000, limit: 5 },
+      { name: 'medium', ttl: 60_000, limit: 120 },
+      { name: 'long', ttl: 3_600_000, limit: 2000 },
+    ]),
     PrismaModule,
     AuthModule,
     TripsModule,

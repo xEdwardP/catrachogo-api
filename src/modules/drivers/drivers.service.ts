@@ -139,6 +139,7 @@ export class DriversService {
 
     return {
       id: driver.id,
+      userId: driver.userId,
       name: driver.user.name,
       profilePhotoUrl: driver.user.profilePhotoUrl,
       averageRating: Number(driver.averageRating ?? 0),
