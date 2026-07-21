@@ -85,3 +85,26 @@ export class AdminWithdrawalsController {
     );
   }
 }
+
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin')
+@Controller('admin/platform-wallet')
+export class AdminPlatformWalletController {
+  constructor(private walletService: WalletService) {}
+
+  @Get()
+  getPlatformWallet() {
+    return this.walletService.getPlatformWallet();
+  }
+
+  @Get('transactions')
+  getPlatformTransactions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.walletService.getPlatformTransactions(
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
+  }
+}

@@ -14,6 +14,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { RatingsModule } from './modules/ratings/ratings.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { FareZonesModule } from './modules/fare-zones/fare-zones.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { FareZonesModule } from './modules/fare-zones/fare-zones.module';
     RatingsModule,
     AdminModule,
     FareZonesModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

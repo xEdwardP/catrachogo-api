@@ -5,13 +5,17 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class RatingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
 
   async createRating(raterId: string, dto: CreateRatingDto) {
     const trip = await this.prisma.trip.findUnique({
@@ -63,6 +67,14 @@ export class RatingsService {
         data: { averageRating: agg._avg.score ?? 0 },
       });
     }
+
+    await this.notifications.create(
+      dto.ratedId,
+      'rating_received',
+      'Nueva calificación',
+      `Recibiste una calificación de ${dto.score} estrellas.`,
+      dto.tripId,
+    );
 
     return rating;
   }
