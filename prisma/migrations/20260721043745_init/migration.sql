@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS postgis;
-
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('passenger', 'driver', 'admin');
 
@@ -13,21 +11,26 @@ CREATE TYPE "VerificationStatus" AS ENUM ('pending', 'approved', 'rejected');
 CREATE TYPE "TripStatus" AS ENUM ('pending', 'accepted', 'in_progress', 'completed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "WalletTransactionType" AS ENUM ('paypal_topup', 'trip_charge', 'trip_payout', 'withdrawal_adjustment');
+CREATE TYPE "WalletTransactionType" AS ENUM ('paypal_topup', 'trip_charge', 'trip_payout', 'withdrawal_adjustment', 'platform_commission');
 
 -- CreateEnum
 CREATE TYPE "WithdrawalStatus" AS ENUM ('pending', 'completed', 'rejected');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('trip_accepted', 'trip_started', 'trip_completed', 'trip_cancelled', 'withdrawal_resolved', 'driver_verification_updated', 'rating_received');
 
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
-    "password_hash" TEXT NOT NULL,
+    "phone" TEXT,
+    "password_hash" TEXT,
+    "google_id" TEXT,
+    "profile_photo_url" TEXT,
     "role" "Role" NOT NULL,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -42,6 +45,10 @@ CREATE TABLE "drivers" (
     "average_rating" DECIMAL(3,2),
     "available" BOOLEAN NOT NULL DEFAULT false,
     "approved_at" TIMESTAMP(3),
+    "id_front_url" TEXT NOT NULL,
+    "id_back_url" TEXT NOT NULL,
+    "vehicle_registration_url" TEXT NOT NULL,
+    "selfie_with_id_url" TEXT NOT NULL,
 
     CONSTRAINT "drivers_pkey" PRIMARY KEY ("id")
 );
@@ -153,11 +160,28 @@ CREATE TABLE "withdrawal_requests" (
     CONSTRAINT "withdrawal_requests_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "notifications" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "related_trip_id" TEXT,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_google_id_key" ON "users"("google_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "drivers_user_id_key" ON "drivers"("user_id");
@@ -167,6 +191,9 @@ CREATE UNIQUE INDEX "vehicles_plate_key" ON "vehicles"("plate");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "wallets_user_id_key" ON "wallets"("user_id");
+
+-- CreateIndex
+CREATE INDEX "notifications_user_id_read_idx" ON "notifications"("user_id", "read");
 
 -- AddForeignKey
 ALTER TABLE "drivers" ADD CONSTRAINT "drivers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -209,3 +236,9 @@ ALTER TABLE "withdrawal_requests" ADD CONSTRAINT "withdrawal_requests_driver_id_
 
 -- AddForeignKey
 ALTER TABLE "withdrawal_requests" ADD CONSTRAINT "withdrawal_requests_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_related_trip_id_fkey" FOREIGN KEY ("related_trip_id") REFERENCES "trips"("id") ON DELETE SET NULL ON UPDATE CASCADE;
