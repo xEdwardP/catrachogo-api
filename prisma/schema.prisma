@@ -43,7 +43,9 @@ enum WalletTransactionType {
   trip_charge
   trip_payout
   withdrawal_adjustment
-  platform_commission 
+  platform_commission
+  cancellation_fee
+  cancellation_payout
 }
 
 enum WithdrawalStatus {

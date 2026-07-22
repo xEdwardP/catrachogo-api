@@ -53,6 +53,13 @@ export class TripsService {
     process.env.PLATFORM_COMMISSION_RATE ?? 0.1,
   );
 
+  private readonly CANCELLATION_FEE_AMOUNT = Number(
+    process.env.CANCELLATION_FEE_AMOUNT ?? 25,
+  );
+  private readonly CANCELLATION_FEE_DRIVER_SHARE = Number(
+    process.env.CANCELLATION_FEE_DRIVER_SHARE ?? 0.8,
+  );
+
   private async getCommissionBreakdownsByTripIds(tripIds: string[]) {
     const map = new Map<
       string,
@@ -206,11 +213,76 @@ export class TripsService {
       );
     }
 
+    const chargeFee = isPassenger && trip.status === 'accepted';
+
     this.candidatesCache.clear(tripId);
-    const updated = await this.prisma.trip.update({
-      where: { id: tripId },
-      data: { status: 'cancelled' },
-    });
+
+    const { driverShare, ...result } = await this.prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.trip.update({
+          where: { id: tripId },
+          data: { status: 'cancelled' },
+        });
+
+        if (!chargeFee) {
+          return {
+            ...updated,
+            cancellationFee: null as number | null,
+            driverShare: null as number | null,
+          };
+        }
+
+        const fee = this.CANCELLATION_FEE_AMOUNT;
+        const driverShare = Number(
+          (fee * this.CANCELLATION_FEE_DRIVER_SHARE).toFixed(2),
+        );
+        const platformShare = Number((fee - driverShare).toFixed(2));
+
+        const passengerWallet = await tx.wallet.update({
+          where: { userId: trip.passengerId },
+          data: { balance: { decrement: fee } },
+        });
+        await tx.walletTransaction.create({
+          data: {
+            walletId: passengerWallet.id,
+            type: 'cancellation_fee',
+            amount: -fee,
+            tripReferenceId: updated.id,
+          },
+        });
+
+        const driverWallet = await tx.wallet.update({
+          where: { userId: trip.driver!.userId },
+          data: { balance: { increment: driverShare } },
+        });
+        await tx.walletTransaction.create({
+          data: {
+            walletId: driverWallet.id,
+            type: 'cancellation_payout',
+            amount: driverShare,
+            tripReferenceId: updated.id,
+          },
+        });
+
+        const platformWallet = await tx.wallet.findUniqueOrThrow({
+          where: { userId: process.env.PLATFORM_USER_ID },
+        });
+        await tx.wallet.update({
+          where: { id: platformWallet.id },
+          data: { balance: { increment: platformShare } },
+        });
+        await tx.walletTransaction.create({
+          data: {
+            walletId: platformWallet.id,
+            type: 'platform_commission',
+            amount: platformShare,
+            tripReferenceId: updated.id,
+          },
+        });
+
+        return { ...updated, cancellationFee: fee, driverShare };
+      },
+    );
 
     const recipientUserId = isPassenger
       ? trip.driver?.userId
@@ -220,12 +292,14 @@ export class TripsService {
         recipientUserId,
         'trip_cancelled',
         'Viaje cancelado',
-        `El viaje hacia ${trip.destinationAddress} fue cancelado.`,
+        chargeFee && driverShare !== null
+          ? `El viaje hacia ${trip.destinationAddress} fue cancelado. Recibiste L.${driverShare.toFixed(2)} por la cancelación tardía.`
+          : `El viaje hacia ${trip.destinationAddress} fue cancelado.`,
         trip.id,
       );
     }
 
-    return this.toTripNumbers(updated);
+    return this.toTripNumbers(result);
   }
 
   async getTripDetail(
