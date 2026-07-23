@@ -28,11 +28,15 @@ export class WalletController {
     return this.walletService.getWallet(req.user.userId);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('passenger')
   @Post('topup/create-order')
   createOrder(@Body() dto: TopupCreateOrderDto) {
     return this.walletService.createTopupOrder(dto.amount);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('passenger')
   @Post('topup/confirm')
   confirm(@Request() req, @Body() dto: TopupConfirmDto) {
     return this.walletService.confirmTopup(req.user.userId, dto.orderId);
