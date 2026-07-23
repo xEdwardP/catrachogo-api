@@ -11,13 +11,13 @@ CREATE TYPE "VerificationStatus" AS ENUM ('pending', 'approved', 'rejected');
 CREATE TYPE "TripStatus" AS ENUM ('pending', 'accepted', 'in_progress', 'completed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "WalletTransactionType" AS ENUM ('paypal_topup', 'trip_charge', 'trip_payout', 'withdrawal_adjustment', 'platform_commission');
+CREATE TYPE "WalletTransactionType" AS ENUM ('paypal_topup', 'trip_charge', 'trip_payout', 'withdrawal_adjustment', 'platform_commission', 'cancellation_fee', 'cancellation_payout');
 
 -- CreateEnum
 CREATE TYPE "WithdrawalStatus" AS ENUM ('pending', 'completed', 'rejected');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('trip_accepted', 'trip_started', 'trip_completed', 'trip_cancelled', 'withdrawal_resolved', 'driver_verification_updated', 'rating_received');
+CREATE TYPE "NotificationType" AS ENUM ('trip_accepted', 'trip_started', 'trip_completed', 'trip_cancelled', 'withdrawal_resolved', 'driver_verification_updated', 'rating_received', 'driver_arrived');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -81,6 +81,7 @@ CREATE TABLE "trips" (
     "distance_km" DECIMAL(6,2) NOT NULL,
     "fare" DECIMAL(8,2) NOT NULL,
     "requested_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "arrived_at" TIMESTAMP(3),
     "started_at" TIMESTAMP(3),
     "completed_at" TIMESTAMP(3),
 

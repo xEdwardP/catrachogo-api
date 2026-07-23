@@ -62,6 +62,7 @@ enum NotificationType {
   withdrawal_resolved
   driver_verification_updated
   rating_received
+  driver_arrived
 }
 
 model User {
@@ -138,6 +139,7 @@ model Trip {
   distanceKm          Decimal   @map("distance_km") @db.Decimal(6, 2)
   fare                Decimal   @db.Decimal(8, 2)
   requestedAt         DateTime  @default(now()) @map("requested_at")
+  arrivedAt           DateTime? @map("arrived_at")
   startedAt           DateTime? @map("started_at")
   completedAt         DateTime? @map("completed_at")
 
