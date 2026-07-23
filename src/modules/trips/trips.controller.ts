@@ -64,6 +64,22 @@ export class TripsController {
     return this.tripsService.startTrip(id, driverId);
   }
 
+  @Patch(':id/arrived')
+  async markArrived(@Request() req, @Param('id') id: string) {
+    const driverId = await this.driversService.getDriverIdByUserId(
+      req.user.userId,
+    );
+    return this.tripsService.markArrived(id, driverId);
+  }
+
+  @Patch(':id/no-show')
+  async reportNoShow(@Request() req, @Param('id') id: string) {
+    const driverId = await this.driversService.getDriverIdByUserId(
+      req.user.userId,
+    );
+    return this.tripsService.reportNoShow(id, driverId);
+  }
+
   @Patch(':id/cancel')
   cancel(@Request() req, @Param('id') id: string) {
     return this.tripsService.cancelTrip(id, req.user.userId);
