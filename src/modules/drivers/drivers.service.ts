@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class DriversService {
   constructor(
     private prisma: PrismaService,
     private candidatesCache: TripCandidatesCache,
+    private notifications: NotificationsService,
   ) {}
 
   async getDriverIdByUserId(userId: string): Promise<string> {
@@ -160,12 +162,23 @@ export class DriversService {
   }
 
   async updateVerification(driverId: string, status: 'approved' | 'rejected') {
-    return this.prisma.driver.update({
+    const driver = await this.prisma.driver.update({
       where: { id: driverId },
       data: {
         verificationStatus: status,
         approvedAt: status === 'approved' ? new Date() : null,
       },
     });
+
+    await this.notifications.create(
+      driver.userId,
+      'driver_verification_updated',
+      status === 'approved' ? 'Documentos aprobados' : 'Documentos rechazados',
+      status === 'approved'
+        ? 'Tus documentos fueron aprobados. Ya puedes conectarte para recibir viajes.'
+        : 'Tus documentos fueron rechazados. Revisa tu perfil y vuelve a intentarlo.',
+    );
+
+    return driver;
   }
 }

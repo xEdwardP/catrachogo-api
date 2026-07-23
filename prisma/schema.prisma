@@ -43,12 +43,25 @@ enum WalletTransactionType {
   trip_charge
   trip_payout
   withdrawal_adjustment
+  platform_commission
+  cancellation_fee
+  cancellation_payout
 }
 
 enum WithdrawalStatus {
   pending
   completed
   rejected
+}
+
+enum NotificationType {
+  trip_accepted
+  trip_started
+  trip_completed
+  trip_cancelled
+  withdrawal_resolved
+  driver_verification_updated
+  rating_received
 }
 
 model User {
@@ -69,6 +82,7 @@ model User {
   ratingsGiven        Rating[]            @relation("RaterRatings")
   ratingsReceived     Rating[]            @relation("RatedRatings")
   resolvedWithdrawals WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
+  notifications       Notification[] 
 
   @@map("users")
 }
@@ -132,6 +146,7 @@ model Trip {
   ratings          Rating[]
   locationTracking LocationTracking[]
   walletTxns       WalletTransaction[]
+  notifications    Notification[]
 
   @@map("trips")
 }
@@ -217,4 +232,21 @@ model WithdrawalRequest {
   admin  User?  @relation("AdminResolvedWithdrawals", fields: [adminId], references: [id])
 
   @@map("withdrawal_requests")
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String           @map("user_id")
+  type          NotificationType
+  title         String
+  body          String
+  relatedTripId String?          @map("related_trip_id")
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  user        User  @relation(fields: [userId], references: [id])
+  relatedTrip Trip? @relation(fields: [relatedTripId], references: [id])
+
+  @@map("notifications")
+  @@index([userId, read])
 }

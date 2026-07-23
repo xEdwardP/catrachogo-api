@@ -5,9 +5,10 @@ import { FareCalculationService } from './fare-calculation.service';
 import { DriversModule } from '../drivers/drivers.module';
 import { TrackingModule } from '../tracking/tracking.module';
 import { MatchingModule } from '../matching/matching.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [DriversModule, TrackingModule, MatchingModule],
+  imports: [DriversModule, TrackingModule, MatchingModule, NotificationsModule],
   controllers: [TripsController],
   providers: [TripsService, FareCalculationService],
   exports: [MatchingModule, TripsService],

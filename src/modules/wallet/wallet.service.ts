@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaypalService } from './paypal.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class WalletService {
   constructor(
     private prisma: PrismaService,
     private paypal: PaypalService,
+    private notifications: NotificationsService,
   ) {}
 
   async getWallet(userId: string) {
@@ -127,11 +129,12 @@ export class WalletService {
     if (request.status !== 'pending')
       throw new BadRequestException('Request already resolved');
 
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: request.driverId },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
     if (status === 'rejected') {
-      const driver = await this.prisma.driver.findUnique({
-        where: { id: request.driverId },
-      });
-      if (!driver) throw new NotFoundException('Driver not found');
       const wallet = await this.prisma.wallet.findUnique({
         where: { userId: driver.userId },
       });
@@ -150,9 +153,49 @@ export class WalletService {
       });
     }
 
-    return this.prisma.withdrawalRequest.update({
+    const resolved = await this.prisma.withdrawalRequest.update({
       where: { id: requestId },
       data: { status, resolvedAt: new Date(), adminId },
     });
+
+    await this.notifications.create(
+      driver.userId,
+      'withdrawal_resolved',
+      status === 'completed' ? 'Retiro aprobado' : 'Retiro rechazado',
+      status === 'completed'
+        ? `Tu retiro de L.${Number(request.amount).toFixed(2)} fue procesado.`
+        : `Tu retiro de L.${Number(request.amount).toFixed(2)} fue rechazado y el monto volvió a tu wallet.`,
+    );
+
+    return resolved;
+  }
+
+  async getPlatformWallet() {
+    const wallet = await this.prisma.wallet.findUniqueOrThrow({
+      where: { userId: process.env.PLATFORM_USER_ID },
+    });
+    return { balance: Number(wallet.balance) };
+  }
+
+  async getPlatformTransactions(page = 1, limit = 20) {
+    const wallet = await this.prisma.wallet.findUniqueOrThrow({
+      where: { userId: process.env.PLATFORM_USER_ID },
+    });
+    const { take, skip } = paginationParams(page, limit);
+    const [transactions, total] = await Promise.all([
+      this.prisma.walletTransaction.findMany({
+        where: { walletId: wallet.id },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prisma.walletTransaction.count({ where: { walletId: wallet.id } }),
+    ]);
+    return {
+      data: transactions.map((t) => ({ ...t, amount: Number(t.amount) })),
+      total,
+      page,
+      limit,
+    };
   }
 }
