@@ -69,6 +69,11 @@ export class TripsController {
     return this.tripsService.cancelTrip(id, req.user.userId);
   }
 
+  @Patch(':id/complete-early')
+  completeEarly(@Request() req, @Param('id') id: string) {
+    return this.tripsService.completeTripEarly(id, req.user.userId);
+  }
+
   @Get('history')
   getHistory(
     @Request() req,
