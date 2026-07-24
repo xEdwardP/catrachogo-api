@@ -65,6 +65,12 @@ enum NotificationType {
   driver_arrived
 }
 
+enum SavedAddressLabel {
+  home
+  work
+  other
+}
+
 model User {
   id              String   @id @default(uuid())
   name            String
@@ -83,7 +89,8 @@ model User {
   ratingsGiven        Rating[]            @relation("RaterRatings")
   ratingsReceived     Rating[]            @relation("RatedRatings")
   resolvedWithdrawals WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
-  notifications       Notification[] 
+  notifications       Notification[]
+  savedAddresses      SavedAddress[]
 
   @@map("users")
 }
@@ -251,4 +258,19 @@ model Notification {
 
   @@map("notifications")
   @@index([userId, read])
+}
+
+model SavedAddress {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  label       SavedAddressLabel
+  customLabel String?           @map("custom_label")
+  address     String
+  lat         Decimal           @db.Decimal(9, 6)
+  lng         Decimal           @db.Decimal(9, 6)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("saved_addresses")
 }

@@ -19,6 +19,9 @@ CREATE TYPE "WithdrawalStatus" AS ENUM ('pending', 'completed', 'rejected');
 -- CreateEnum
 CREATE TYPE "NotificationType" AS ENUM ('trip_accepted', 'trip_started', 'trip_completed', 'trip_cancelled', 'withdrawal_resolved', 'driver_verification_updated', 'rating_received', 'driver_arrived');
 
+-- CreateEnum
+CREATE TYPE "SavedAddressLabel" AS ENUM ('home', 'work', 'other');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -175,6 +178,20 @@ CREATE TABLE "notifications" (
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "saved_addresses" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "label" "SavedAddressLabel" NOT NULL,
+    "custom_label" TEXT,
+    "address" TEXT NOT NULL,
+    "lat" DECIMAL(9,6) NOT NULL,
+    "lng" DECIMAL(9,6) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "saved_addresses_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -243,3 +260,6 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_related_trip_id_fkey" FOREIGN KEY ("related_trip_id") REFERENCES "trips"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "saved_addresses" ADD CONSTRAINT "saved_addresses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
