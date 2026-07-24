@@ -69,6 +69,7 @@ export class AuthService {
         email: true,
         phone: true,
         role: true,
+        profilePhotoUrl: true,
         createdAt: true,
       },
     });
@@ -123,6 +124,14 @@ export class AuthService {
       data: { profilePhotoUrl },
     });
     return { profilePhotoUrl: user.profilePhotoUrl };
+  }
+
+  async updateName(userId: string, name: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name },
+    });
+    return { name: user.name };
   }
 
   async completePhone(userId: string, phone: string) {
