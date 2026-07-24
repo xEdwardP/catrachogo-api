@@ -60,6 +60,9 @@ export class TripsService {
     process.env.CANCELLATION_FEE_DRIVER_SHARE ?? 0.8,
   );
 
+  private readonly NO_SHOW_GRACE_PERIOD_MS =
+    Number(process.env.NO_SHOW_GRACE_PERIOD_MINUTES ?? 5) * 60 * 1000;
+
   private async getCommissionBreakdownsByTripIds(tripIds: string[]) {
     const map = new Map<
       string,
@@ -194,6 +197,122 @@ export class TripsService {
     );
 
     return this.toTripNumbers(updated);
+  }
+
+  async markArrived(tripId: string, driverId: string) {
+    const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip || trip.driverId !== driverId) {
+      throw new ForbiddenException('Not your trip');
+    }
+    if (trip.status !== 'accepted') {
+      throw new BadRequestException('Trip must be accepted to mark arrival');
+    }
+    if (trip.arrivedAt) {
+      return this.toTripNumbers(trip);
+    }
+
+    const updated = await this.prisma.trip.update({
+      where: { id: tripId },
+      data: { arrivedAt: new Date() },
+    });
+
+    await this.notifications.create(
+      updated.passengerId,
+      'driver_arrived',
+      'Tu conductor ha llegado',
+      'Tu conductor está esperando en el punto de recogida.',
+      updated.id,
+    );
+
+    return this.toTripNumbers(updated);
+  }
+
+  async reportNoShow(tripId: string, driverId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { driver: true },
+    });
+    if (!trip || trip.driverId !== driverId) {
+      throw new ForbiddenException('Not your trip');
+    }
+    if (trip.status !== 'accepted' || !trip.arrivedAt) {
+      throw new BadRequestException(
+        'Driver must have marked arrival on an accepted trip',
+      );
+    }
+    const elapsedMs = Date.now() - trip.arrivedAt.getTime();
+    if (elapsedMs < this.NO_SHOW_GRACE_PERIOD_MS) {
+      throw new BadRequestException('Grace period has not elapsed yet');
+    }
+
+    this.candidatesCache.clear(tripId);
+
+    const fee = this.CANCELLATION_FEE_AMOUNT;
+    const driverShare = Number(
+      (fee * this.CANCELLATION_FEE_DRIVER_SHARE).toFixed(2),
+    );
+    const platformShare = Number((fee - driverShare).toFixed(2));
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.trip.update({
+        where: { id: tripId },
+        data: { status: 'cancelled' },
+      });
+
+      const passengerWallet = await tx.wallet.update({
+        where: { userId: trip.passengerId },
+        data: { balance: { decrement: fee } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: passengerWallet.id,
+          type: 'cancellation_fee',
+          amount: -fee,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      const driverWallet = await tx.wallet.update({
+        where: { userId: trip.driver!.userId },
+        data: { balance: { increment: driverShare } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: driverWallet.id,
+          type: 'cancellation_payout',
+          amount: driverShare,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      const platformWallet = await tx.wallet.findUniqueOrThrow({
+        where: { userId: process.env.PLATFORM_USER_ID },
+      });
+      await tx.wallet.update({
+        where: { id: platformWallet.id },
+        data: { balance: { increment: platformShare } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: platformWallet.id,
+          type: 'platform_commission',
+          amount: platformShare,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      return { ...updated, cancellationFee: fee };
+    });
+
+    await this.notifications.create(
+      trip.passengerId,
+      'trip_cancelled',
+      'Viaje cancelado',
+      `El conductor reportó que no llegaste al punto de recogida. Se aplicó un cargo de L.${fee.toFixed(2)}.`,
+      trip.id,
+    );
+
+    return this.toTripNumbers(result);
   }
 
   async cancelTrip(tripId: string, requesterId: string) {
@@ -465,6 +584,118 @@ export class TripsService {
     );
 
     return result;
+  }
+
+  async completeTripEarly(tripId: string, requesterId: string) {
+    const trip = await this.prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { driver: true },
+    });
+    if (!trip) throw new NotFoundException();
+    if (trip.passengerId !== requesterId) {
+      throw new ForbiddenException('Not your trip');
+    }
+    if (trip.status !== 'in_progress') {
+      throw new BadRequestException('Trip must be in progress to end it early');
+    }
+
+    const lastLocation = await this.tracking.getLastLocationForTrip(tripId);
+    if (!lastLocation) {
+      throw new BadRequestException(
+        'No location data available to calculate the fare',
+      );
+    }
+
+    const actualDistanceKm = await this.fareCalc.calculateDistanceKm(
+      Number(trip.originLat),
+      Number(trip.originLng),
+      lastLocation.lat,
+      lastLocation.lng,
+    );
+    const zone = await this.fareCalc.resolveClosestZone(
+      Number(trip.originLat),
+      Number(trip.originLng),
+    );
+    const proratedFare = Number(
+      (
+        Number(zone.base_fare) +
+        actualDistanceKm * Number(zone.fare_per_km)
+      ).toFixed(2),
+    );
+
+    this.candidatesCache.clear(tripId);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.trip.update({
+        where: { id: tripId },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+          distanceKm: actualDistanceKm,
+          fare: proratedFare,
+        },
+        include: { driver: true },
+      });
+
+      const platformFee = Number(
+        (proratedFare * this.PLATFORM_COMMISSION_RATE).toFixed(2),
+      );
+      const driverEarnings = Number((proratedFare - platformFee).toFixed(2));
+
+      const passengerWallet = await tx.wallet.update({
+        where: { userId: trip.passengerId },
+        data: { balance: { decrement: proratedFare } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: passengerWallet.id,
+          type: 'trip_charge',
+          amount: -proratedFare,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      const driverWallet = await tx.wallet.update({
+        where: { userId: trip.driver!.userId },
+        data: { balance: { increment: driverEarnings } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: driverWallet.id,
+          type: 'trip_payout',
+          amount: driverEarnings,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      const platformWallet = await tx.wallet.findUniqueOrThrow({
+        where: { userId: process.env.PLATFORM_USER_ID },
+      });
+      await tx.wallet.update({
+        where: { id: platformWallet.id },
+        data: { balance: { increment: platformFee } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          walletId: platformWallet.id,
+          type: 'platform_commission',
+          amount: platformFee,
+          tripReferenceId: updated.id,
+        },
+      });
+
+      return { ...updated, driverEarnings, platformFee };
+    });
+
+    await this.notifications.create(
+      trip.driver!.userId,
+      'trip_completed',
+      'Viaje finalizado por el pasajero',
+      `El pasajero finalizó el viaje antes de llegar al destino. Se cobró L.${proratedFare.toFixed(2)} por la distancia recorrida.`,
+      trip.id,
+    );
+
+    return this.toTripNumbers(result);
   }
 
   async getHistory(userId: string, role: string, page = 1, limit = 20) {

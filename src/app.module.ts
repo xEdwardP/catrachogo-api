@@ -15,6 +15,8 @@ import { RatingsModule } from './modules/ratings/ratings.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { FareZonesModule } from './modules/fare-zones/fare-zones.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SavedAddressesModule } from './modules/saved-addresses/saved-addresses.module';
+import { IncidentReportsModule } from './modules/incident-reports/incident-reports.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AdminModule,
     FareZonesModule,
     NotificationsModule,
+    SavedAddressesModule,
+    IncidentReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

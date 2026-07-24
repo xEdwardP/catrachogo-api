@@ -62,6 +62,26 @@ enum NotificationType {
   withdrawal_resolved
   driver_verification_updated
   rating_received
+  driver_arrived
+}
+
+enum SavedAddressLabel {
+  home
+  work
+  other
+}
+
+enum IncidentReportCategory {
+  safety
+  driver_behavior
+  vehicle_condition
+  payment
+  other
+}
+
+enum IncidentReportStatus {
+  pending
+  reviewed
 }
 
 model User {
@@ -76,13 +96,15 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   isActive        Boolean  @default(true) @map("is_active")
 
-  driver              Driver?
-  wallet              Wallet?
-  tripsAsPassenger    Trip[]              @relation("PassengerTrips")
-  ratingsGiven        Rating[]            @relation("RaterRatings")
-  ratingsReceived     Rating[]            @relation("RatedRatings")
-  resolvedWithdrawals WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
-  notifications       Notification[] 
+  driver               Driver?
+  wallet               Wallet?
+  tripsAsPassenger     Trip[]              @relation("PassengerTrips")
+  ratingsGiven         Rating[]            @relation("RaterRatings")
+  ratingsReceived      Rating[]            @relation("RatedRatings")
+  resolvedWithdrawals  WithdrawalRequest[] @relation("AdminResolvedWithdrawals")
+  notifications        Notification[]
+  savedAddresses       SavedAddress[]
+  incidentReportsFiled IncidentReport[]    @relation("ReporterIncidentReports")
 
   @@map("users")
 }
@@ -106,6 +128,7 @@ model Driver {
   trips              Trip[]
   locationTracking   LocationTracking[]
   withdrawalRequests WithdrawalRequest[]
+  incidentReports    IncidentReport[]
 
   @@map("drivers")
 }
@@ -125,21 +148,22 @@ model Vehicle {
 }
 
 model Trip {
-  id                  String    @id @default(uuid())
-  passengerId         String    @map("passenger_id")
-  driverId            String?   @map("driver_id")
-  originLat           Decimal   @map("origin_lat") @db.Decimal(9, 6)
-  originLng           Decimal   @map("origin_lng") @db.Decimal(9, 6)
-  originAddress       String    @map("origin_address")
-  destinationLat      Decimal   @map("destination_lat") @db.Decimal(9, 6)
-  destinationLng       Decimal   @map("destination_lng") @db.Decimal(9, 6)
-  destinationAddress  String    @map("destination_address")
-  status              TripStatus @default(pending)
-  distanceKm          Decimal   @map("distance_km") @db.Decimal(6, 2)
-  fare                Decimal   @db.Decimal(8, 2)
-  requestedAt         DateTime  @default(now()) @map("requested_at")
-  startedAt           DateTime? @map("started_at")
-  completedAt         DateTime? @map("completed_at")
+  id                 String     @id @default(uuid())
+  passengerId        String     @map("passenger_id")
+  driverId           String?    @map("driver_id")
+  originLat          Decimal    @map("origin_lat") @db.Decimal(9, 6)
+  originLng          Decimal    @map("origin_lng") @db.Decimal(9, 6)
+  originAddress      String     @map("origin_address")
+  destinationLat     Decimal    @map("destination_lat") @db.Decimal(9, 6)
+  destinationLng     Decimal    @map("destination_lng") @db.Decimal(9, 6)
+  destinationAddress String     @map("destination_address")
+  status             TripStatus @default(pending)
+  distanceKm         Decimal    @map("distance_km") @db.Decimal(6, 2)
+  fare               Decimal    @db.Decimal(8, 2)
+  requestedAt        DateTime   @default(now()) @map("requested_at")
+  arrivedAt          DateTime?  @map("arrived_at")
+  startedAt          DateTime?  @map("started_at")
+  completedAt        DateTime?  @map("completed_at")
 
   passenger        User                @relation("PassengerTrips", fields: [passengerId], references: [id])
   driver           Driver?             @relation(fields: [driverId], references: [id])
@@ -147,6 +171,7 @@ model Trip {
   locationTracking LocationTracking[]
   walletTxns       WalletTransaction[]
   notifications    Notification[]
+  incidentReports  IncidentReport[]
 
   @@map("trips")
 }
@@ -182,12 +207,12 @@ model Rating {
 }
 
 model FareZone {
-  id         String  @id @default(uuid())
-  zoneName   String  @map("zone_name")
-  baseFare   Decimal @map("base_fare") @db.Decimal(6, 2)
-  farePerKm  Decimal @map("fare_per_km") @db.Decimal(6, 2)
-  centerLat  Decimal @map("center_lat") @db.Decimal(9, 6)
-  centerLng  Decimal @map("center_lng") @db.Decimal(9, 6)
+  id        String  @id @default(uuid())
+  zoneName  String  @map("zone_name")
+  baseFare  Decimal @map("base_fare") @db.Decimal(6, 2)
+  farePerKm Decimal @map("fare_per_km") @db.Decimal(6, 2)
+  centerLat Decimal @map("center_lat") @db.Decimal(9, 6)
+  centerLng Decimal @map("center_lng") @db.Decimal(9, 6)
 
   @@map("fare_zones")
 }
@@ -204,13 +229,13 @@ model Wallet {
 }
 
 model WalletTransaction {
-  id                 String                @id @default(uuid())
-  walletId           String                @map("wallet_id")
-  type               WalletTransactionType
-  amount             Decimal               @db.Decimal(10, 2)
-  tripReferenceId    String?               @map("trip_reference_id")
-  paypalReferenceId  String?               @map("paypal_reference_id")
-  createdAt          DateTime              @default(now()) @map("created_at")
+  id                String                @id @default(uuid())
+  walletId          String                @map("wallet_id")
+  type              WalletTransactionType
+  amount            Decimal               @db.Decimal(10, 2)
+  tripReferenceId   String?               @map("trip_reference_id")
+  paypalReferenceId String?               @map("paypal_reference_id")
+  createdAt         DateTime              @default(now()) @map("created_at")
 
   wallet Wallet @relation(fields: [walletId], references: [id])
   trip   Trip?  @relation(fields: [tripReferenceId], references: [id])
@@ -219,14 +244,14 @@ model WalletTransaction {
 }
 
 model WithdrawalRequest {
-  id          String            @id @default(uuid())
-  driverId    String            @map("driver_id")
-  paypalEmail String            @map("paypal_email")
-  amount      Decimal           @db.Decimal(10, 2)
-  status      WithdrawalStatus  @default(pending)
-  requestedAt DateTime          @default(now()) @map("requested_at")
-  resolvedAt  DateTime?         @map("resolved_at")
-  adminId     String?           @map("admin_id")
+  id          String           @id @default(uuid())
+  driverId    String           @map("driver_id")
+  paypalEmail String           @map("paypal_email")
+  amount      Decimal          @db.Decimal(10, 2)
+  status      WithdrawalStatus @default(pending)
+  requestedAt DateTime         @default(now()) @map("requested_at")
+  resolvedAt  DateTime?        @map("resolved_at")
+  adminId     String?          @map("admin_id")
 
   driver Driver @relation(fields: [driverId], references: [id])
   admin  User?  @relation("AdminResolvedWithdrawals", fields: [adminId], references: [id])
@@ -247,6 +272,38 @@ model Notification {
   user        User  @relation(fields: [userId], references: [id])
   relatedTrip Trip? @relation(fields: [relatedTripId], references: [id])
 
-  @@map("notifications")
   @@index([userId, read])
+  @@map("notifications")
+}
+
+model SavedAddress {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  label       SavedAddressLabel
+  customLabel String?           @map("custom_label")
+  address     String
+  lat         Decimal           @db.Decimal(9, 6)
+  lng         Decimal           @db.Decimal(9, 6)
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("saved_addresses")
+}
+
+model IncidentReport {
+  id               String                 @id @default(uuid())
+  reporterId       String                 @map("reporter_id")
+  tripId           String?                @map("trip_id")
+  reportedDriverId String?                @map("reported_driver_id")
+  category         IncidentReportCategory
+  description      String
+  status           IncidentReportStatus   @default(pending)
+  createdAt        DateTime               @default(now()) @map("created_at")
+
+  reporter       User    @relation("ReporterIncidentReports", fields: [reporterId], references: [id])
+  trip           Trip?   @relation(fields: [tripId], references: [id])
+  reportedDriver Driver? @relation(fields: [reportedDriverId], references: [id])
+
+  @@map("incident_reports")
 }
