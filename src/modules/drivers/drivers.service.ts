@@ -129,6 +129,7 @@ export class DriversService {
       earningsToday: Number(aggregate._sum.fare ?? 0),
       tripsToday: aggregate._count,
       averageRating: Number(driver?.averageRating ?? 0),
+      available: driver?.available ?? false,
     };
   }
 
