@@ -7,12 +7,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private cloudinary: CloudinaryService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -119,10 +121,20 @@ export class AuthService {
   }
 
   async updateProfilePhoto(userId: string, profilePhotoUrl: string) {
+    const previous = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { profilePhotoUrl: true },
+    });
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { profilePhotoUrl },
     });
+
+    if (previous?.profilePhotoUrl) {
+      await this.cloudinary.deleteByUrl(previous.profilePhotoUrl);
+    }
+
     return { profilePhotoUrl: user.profilePhotoUrl };
   }
 
