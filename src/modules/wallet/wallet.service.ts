@@ -22,9 +22,12 @@ export class WalletService {
     return { balance: Number(wallet.balance) };
   }
 
-  async createTopupOrder(amount: number): Promise<{ orderId: string }> {
-    const orderId = await this.paypal.createOrder(amount);
-    return { orderId };
+  async createTopupOrder(
+    amount: number,
+    returnUrl?: string,
+    cancelUrl?: string,
+  ): Promise<{ orderId: string; approveUrl: string | null }> {
+    return this.paypal.createOrder(amount, returnUrl, cancelUrl);
   }
 
   async confirmTopup(userId: string, orderId: string) {
