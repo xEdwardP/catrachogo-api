@@ -4,6 +4,7 @@ import {
   Post,
   Get,
   Body,
+  Headers,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -30,8 +31,11 @@ export class AuthController {
     medium: { limit: 10, ttl: 60_000 },
   })
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(
+    @Body() dto: RegisterDto,
+    @Headers('x-client-platform') platform?: string,
+  ) {
+    return this.authService.register(dto, platform);
   }
 
   @Throttle({
@@ -39,14 +43,20 @@ export class AuthController {
     medium: { limit: 10, ttl: 60_000 },
   })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  login(
+    @Body() dto: LoginDto,
+    @Headers('x-client-platform') platform?: string,
+  ) {
+    return this.authService.login(dto.email, dto.password, platform);
   }
 
   @Post('google')
-  async loginWithGoogle(@Body() dto: GoogleLoginDto) {
+  async loginWithGoogle(
+    @Body() dto: GoogleLoginDto,
+    @Headers('x-client-platform') platform?: string,
+  ) {
     const payload = await this.googleAuthService.verify(dto.idToken);
-    return this.authService.loginWithGoogle(payload);
+    return this.authService.loginWithGoogle(payload, platform);
   }
 
   @UseGuards(AuthGuard('jwt'))
