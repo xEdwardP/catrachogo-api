@@ -40,6 +40,11 @@ export class AdminController {
     return this.driversService.listByStatus(status);
   }
 
+  @Get('drivers/:id')
+  getDriver(@Param('id') id: string) {
+    return this.driversService.getByIdForAdmin(id);
+  }
+
   @Patch('drivers/:id/verification')
   updateVerification(
     @Param('id') id: string,

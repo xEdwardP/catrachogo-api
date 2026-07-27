@@ -91,8 +91,12 @@ export class WalletService {
       const wallet = await tx.wallet.findUnique({
         where: { userId: driverUserId },
       });
-      if (!wallet || Number(wallet.balance) < amount)
-        throw new BadRequestException('Insufficient balance');
+      if (!wallet || Number(wallet.balance) < amount) {
+        throw new BadRequestException({
+          message: 'Insufficient balance',
+          code: 'insufficient_balance',
+        });
+      }
 
       await tx.wallet.update({
         where: { id: wallet.id },
@@ -105,9 +109,10 @@ export class WalletService {
           amount: -amount,
         },
       });
-      return tx.withdrawalRequest.create({
+      const withdrawal = await tx.withdrawalRequest.create({
         data: { driverId: driver.id, paypalEmail, amount, status: 'pending' },
       });
+      return { ...withdrawal, amount: Number(withdrawal.amount) };
     });
   }
 
@@ -115,7 +120,9 @@ export class WalletService {
     const withdrawals = await this.prisma.withdrawalRequest.findMany({
       where: status ? { status: status as any } : {},
       orderBy: { requestedAt: 'desc' },
-      include: { driver: { include: { user: true } } },
+      include: {
+        driver: { include: { user: { omit: { passwordHash: true } } } },
+      },
     });
     return withdrawals.map((w) => ({ ...w, amount: Number(w.amount) }));
   }

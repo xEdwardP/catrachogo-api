@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -13,19 +14,30 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
+    const response = ctx.getResponse<Response>();
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let message: string | string[] = 'Internal server error';
+    let extra: Record<string, unknown> = {};
     if (exception instanceof HttpException) {
       const body = exception.getResponse();
-      message =
-        typeof body === 'string'
-          ? body
-          : ((body as any).message ?? exception.message);
+      if (typeof body === 'string') {
+        message = body;
+      } else {
+        const bodyRecord = body as Record<string, unknown>;
+        message =
+          (bodyRecord.message as string | string[] | undefined) ??
+          exception.message;
+        // Preserve extra machine-readable fields (e.g. `code`) that a
+        // service may attach to an HttpException response body.
+        extra = { ...bodyRecord };
+        delete extra.message;
+        delete extra.statusCode;
+        delete extra.error;
+      }
     }
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -34,8 +46,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
-    response
-      .status(status)
-      .json({ statusCode: status, message, error: HttpStatus[status] });
+    response.status(status).json({
+      ...extra,
+      statusCode: status,
+      message,
+      error: HttpStatus[status],
+    });
   }
 }
