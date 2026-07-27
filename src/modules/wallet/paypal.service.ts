@@ -32,7 +32,11 @@ export class PaypalService {
     this.ordersController = new OrdersController(client);
   }
 
-  async createOrder(amount: number): Promise<string> {
+  async createOrder(
+    amount: number,
+    returnUrl?: string,
+    cancelUrl?: string,
+  ): Promise<{ orderId: string; approveUrl: string | null }> {
     try {
       const { result } = await this.ordersController.createOrder({
         body: {
@@ -40,9 +44,13 @@ export class PaypalService {
           purchaseUnits: [
             { amount: { currencyCode: 'USD', value: amount.toFixed(2) } },
           ],
+          applicationContext:
+            returnUrl && cancelUrl ? { returnUrl, cancelUrl } : undefined,
         },
       });
-      return result.id!;
+      const approveUrl =
+        result.links?.find((link) => link.rel === 'approve')?.href ?? null;
+      return { orderId: result.id!, approveUrl };
     } catch (error) {
       if (error instanceof ApiError)
         throw new BadRequestException('Could not create PayPal order');
