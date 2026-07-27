@@ -129,6 +129,7 @@ export class DriversService {
       earningsToday: Number(aggregate._sum.fare ?? 0),
       tripsToday: aggregate._count,
       averageRating: Number(driver?.averageRating ?? 0),
+      available: driver?.available ?? false,
     };
   }
 
@@ -149,10 +150,20 @@ export class DriversService {
     };
   }
 
+  async getByIdForAdmin(driverId: string) {
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: driverId },
+      include: { user: { omit: { passwordHash: true } }, vehicles: true },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    return { ...driver, averageRating: Number(driver.averageRating ?? 0) };
+  }
+
   async listByStatus(status?: string) {
     const drivers = await this.prisma.driver.findMany({
       where: status ? { verificationStatus: status as any } : {},
-      include: { user: true, vehicles: true },
+      include: { user: { omit: { passwordHash: true } }, vehicles: true },
       orderBy: { userId: 'asc' },
     });
     return drivers.map((d) => ({

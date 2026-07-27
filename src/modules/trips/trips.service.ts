@@ -7,7 +7,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
+import { Prisma, TripStatus } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FareCalculationService } from './fare-calculation.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
@@ -315,7 +315,7 @@ export class TripsService {
     return this.toTripNumbers(result);
   }
 
-  async cancelTrip(tripId: string, requesterId: string) {
+  async cancelTrip(tripId: string, requesterId: string, reason?: string) {
     const trip = await this.prisma.trip.findUnique({
       where: { id: tripId },
       include: { driver: true },
@@ -340,7 +340,7 @@ export class TripsService {
       async (tx) => {
         const updated = await tx.trip.update({
           where: { id: tripId },
-          data: { status: 'cancelled' },
+          data: { status: 'cancelled', cancelReason: reason ?? null },
         });
 
         if (!chargeFee) {
@@ -736,8 +736,14 @@ export class TripsService {
   }
 
   async listAll(status: string | undefined, page = 1, limit = 20) {
+    if (status && !Object.values(TripStatus).includes(status as TripStatus)) {
+      throw new BadRequestException(
+        `Invalid status. Must be one of: ${Object.values(TripStatus).join(', ')}`,
+      );
+    }
+
     const { take, skip } = paginationParams(page, limit);
-    const where = status ? { status: status as any } : {};
+    const where = status ? { status: status as TripStatus } : {};
 
     const [trips, total] = await Promise.all([
       this.prisma.trip.findMany({

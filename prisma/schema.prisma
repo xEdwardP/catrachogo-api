@@ -164,6 +164,7 @@ model Trip {
   arrivedAt          DateTime?  @map("arrived_at")
   startedAt          DateTime?  @map("started_at")
   completedAt        DateTime?  @map("completed_at")
+  cancelReason       String?    @map("cancel_reason")
 
   passenger        User                @relation("PassengerTrips", fields: [passengerId], references: [id])
   driver           Driver?             @relation(fields: [driverId], references: [id])

@@ -32,7 +32,11 @@ export class WalletController {
   @Roles('passenger')
   @Post('topup/create-order')
   createOrder(@Body() dto: TopupCreateOrderDto) {
-    return this.walletService.createTopupOrder(dto.amount);
+    return this.walletService.createTopupOrder(
+      dto.amount,
+      dto.returnUrl,
+      dto.cancelUrl,
+    );
   }
 
   @UseGuards(RolesGuard)

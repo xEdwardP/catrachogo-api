@@ -7,19 +7,41 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private cloudinary: CloudinaryService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  // La app móvil instalada necesita sesiones más largas que una pestaña de
+  // navegador — el cliente indica su plataforma vía header `X-Client-Platform`.
+  private getExpiresIn(platform?: string): number {
+    if (platform === 'mobile') {
+      return Number(
+        process.env.JWT_EXPIRES_IN_MOBILE ??
+          process.env.JWT_EXPIRES_IN ??
+          604800,
+      );
+    }
+    return Number(process.env.JWT_EXPIRES_IN ?? 604800);
+  }
+
+  async register(dto: RegisterDto, platform?: string) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (existing) throw new ConflictException('Email already registered');
+
+    const existingPhone = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+    if (existingPhone) {
+      throw new ConflictException('Phone number already in use');
+    }
 
     const passwordHash = await argon2.hash(dto.password, {
       type: argon2.argon2id,
@@ -35,7 +57,10 @@ export class AuthService {
       },
     });
 
-    const token = this.jwt.sign({ sub: user.id, role: user.role });
+    const token = this.jwt.sign(
+      { sub: user.id, role: user.role },
+      { expiresIn: this.getExpiresIn(platform) },
+    );
     return {
       id: user.id,
       name: user.name,
@@ -45,7 +70,7 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, platform?: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (!user.passwordHash) {
@@ -56,7 +81,10 @@ export class AuthService {
     if (!(await argon2.verify(user.passwordHash, password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const token = this.jwt.sign({ sub: user.id, role: user.role });
+    const token = this.jwt.sign(
+      { sub: user.id, role: user.role },
+      { expiresIn: this.getExpiresIn(platform) },
+    );
     return { token, user: { id: user.id, name: user.name, role: user.role } };
   }
 
@@ -77,12 +105,15 @@ export class AuthService {
     return user;
   }
 
-  async loginWithGoogle(googlePayload: {
-    googleId: string;
-    email: string;
-    name: string;
-    picture?: string;
-  }) {
+  async loginWithGoogle(
+    googlePayload: {
+      googleId: string;
+      email: string;
+      name: string;
+      picture?: string;
+    },
+    platform?: string,
+  ) {
     let user = await this.prisma.user.findUnique({
       where: { googleId: googlePayload.googleId },
     });
@@ -114,15 +145,28 @@ export class AuthService {
           });
     }
 
-    const token = this.jwt.sign({ sub: user.id, role: user.role });
+    const token = this.jwt.sign(
+      { sub: user.id, role: user.role },
+      { expiresIn: this.getExpiresIn(platform) },
+    );
     return { token, user: { id: user.id, name: user.name, role: user.role } };
   }
 
   async updateProfilePhoto(userId: string, profilePhotoUrl: string) {
+    const previous = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { profilePhotoUrl: true },
+    });
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { profilePhotoUrl },
     });
+
+    if (previous?.profilePhotoUrl) {
+      await this.cloudinary.deleteByUrl(previous.profilePhotoUrl);
+    }
+
     return { profilePhotoUrl: user.profilePhotoUrl };
   }
 

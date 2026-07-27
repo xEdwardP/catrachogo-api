@@ -14,6 +14,7 @@ import { TripsService } from './trips.service';
 import { FareCalculationService } from './fare-calculation.service';
 import { EstimateTripDto } from './dto/estimate-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { CancelTripDto } from './dto/cancel-trip.dto';
 import { DriversService } from '../drivers/drivers.service';
 
 @UseGuards(AuthGuard('jwt'))
@@ -81,8 +82,8 @@ export class TripsController {
   }
 
   @Patch(':id/cancel')
-  cancel(@Request() req, @Param('id') id: string) {
-    return this.tripsService.cancelTrip(id, req.user.userId);
+  cancel(@Request() req, @Param('id') id: string, @Body() dto: CancelTripDto) {
+    return this.tripsService.cancelTrip(id, req.user.userId, dto.reason);
   }
 
   @Patch(':id/complete-early')

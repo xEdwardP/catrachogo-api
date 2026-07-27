@@ -20,6 +20,8 @@ export class IncidentReportsService {
       throw new ForbiddenException('Not your trip');
     }
 
+    // Se permite más de un reporte por (reporter, trip) a propósito: un
+    // mismo viaje puede tener varios problemas distintos que reportar.
     const report = await this.prisma.incidentReport.create({
       data: {
         reporterId,
