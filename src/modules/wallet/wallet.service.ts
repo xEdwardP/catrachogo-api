@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PaypalService } from './paypal.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { paginationParams } from '../../common/utils/pagination.util';
+import { WithdrawalStatus } from '../../../generated/prisma/client';
 
 @Injectable()
 export class WalletService {
@@ -116,15 +117,38 @@ export class WalletService {
     });
   }
 
-  async listWithdrawals(status?: string) {
-    const withdrawals = await this.prisma.withdrawalRequest.findMany({
-      where: status ? { status: status as any } : {},
-      orderBy: { requestedAt: 'desc' },
-      include: {
-        driver: { include: { user: { omit: { passwordHash: true } } } },
-      },
-    });
-    return withdrawals.map((w) => ({ ...w, amount: Number(w.amount) }));
+  async listWithdrawals(status?: string, page = 1, limit = 20) {
+    if (
+      status &&
+      !Object.values(WithdrawalStatus).includes(status as WithdrawalStatus)
+    ) {
+      throw new BadRequestException(
+        `Invalid status. Must be one of: ${Object.values(WithdrawalStatus).join(', ')}`,
+      );
+    }
+
+    const { take, skip } = paginationParams(page, limit);
+    const where = status ? { status: status as WithdrawalStatus } : {};
+
+    const [withdrawals, total] = await Promise.all([
+      this.prisma.withdrawalRequest.findMany({
+        where,
+        orderBy: { requestedAt: 'desc' },
+        include: {
+          driver: { include: { user: { omit: { passwordHash: true } } } },
+        },
+        take,
+        skip,
+      }),
+      this.prisma.withdrawalRequest.count({ where }),
+    ]);
+
+    return {
+      data: withdrawals.map((w) => ({ ...w, amount: Number(w.amount) })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async resolveWithdrawal(
