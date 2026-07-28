@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -8,6 +9,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
+import { VerificationStatus } from '../../../generated/prisma/client';
+import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class DriversService {
@@ -160,19 +163,49 @@ export class DriversService {
     return { ...driver, averageRating: Number(driver.averageRating ?? 0) };
   }
 
-  async listByStatus(status?: string) {
-    const drivers = await this.prisma.driver.findMany({
-      where: status ? { verificationStatus: status as any } : {},
-      include: { user: { omit: { passwordHash: true } }, vehicles: true },
-      orderBy: { userId: 'asc' },
-    });
-    return drivers.map((d) => ({
-      ...d,
-      averageRating: Number(d.averageRating ?? 0),
-    }));
+  async listByStatus(status?: string, page = 1, limit = 20) {
+    if (
+      status &&
+      !Object.values(VerificationStatus).includes(status as VerificationStatus)
+    ) {
+      throw new BadRequestException(
+        `Invalid status. Must be one of: ${Object.values(VerificationStatus).join(', ')}`,
+      );
+    }
+
+    const { take, skip } = paginationParams(page, limit);
+    const where = status
+      ? { verificationStatus: status as VerificationStatus }
+      : {};
+
+    const [drivers, total] = await Promise.all([
+      this.prisma.driver.findMany({
+        where,
+        include: { user: { omit: { passwordHash: true } }, vehicles: true },
+        orderBy: { userId: 'asc' },
+        take,
+        skip,
+      }),
+      this.prisma.driver.count({ where }),
+    ]);
+
+    return {
+      data: drivers.map((d) => ({
+        ...d,
+        averageRating: Number(d.averageRating ?? 0),
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async updateVerification(driverId: string, status: 'approved' | 'rejected') {
+    const existing = await this.prisma.driver.findUnique({
+      where: { id: driverId },
+    });
+    if (!existing) throw new NotFoundException('Driver not found');
+
     const driver = await this.prisma.driver.update({
       where: { id: driverId },
       data: {

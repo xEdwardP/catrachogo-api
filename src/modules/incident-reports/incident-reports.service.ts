@@ -1,11 +1,13 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateIncidentReportDto } from './dto/create-incident-report.dto';
-import type { IncidentReportStatus } from '../../../generated/prisma/client';
+import { IncidentReportStatus } from '../../../generated/prisma/client';
+import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class IncidentReportsService {
@@ -20,8 +22,6 @@ export class IncidentReportsService {
       throw new ForbiddenException('Not your trip');
     }
 
-    // Se permite más de un reporte por (reporter, trip) a propósito: un
-    // mismo viaje puede tener varios problemas distintos que reportar.
     const report = await this.prisma.incidentReport.create({
       data: {
         reporterId,
@@ -34,35 +34,64 @@ export class IncidentReportsService {
     return { id: report.id };
   }
 
-  async listForAdmin(status?: IncidentReportStatus) {
-    const rows = await this.prisma.incidentReport.findMany({
-      where: status ? { status } : {},
-      orderBy: { createdAt: 'desc' },
-      include: {
-        reporter: { select: { id: true, name: true } },
-        reportedDriver: {
-          include: { user: { select: { id: true, name: true } } },
-        },
-        trip: { select: { destinationAddress: true } },
-      },
-    });
+  async listForAdmin(status?: string, page = 1, limit = 20) {
+    if (
+      status &&
+      !Object.values(IncidentReportStatus).includes(
+        status as IncidentReportStatus,
+      )
+    ) {
+      throw new BadRequestException(
+        `Invalid status. Must be one of: ${Object.values(IncidentReportStatus).join(', ')}`,
+      );
+    }
 
-    return rows.map((row) => ({
-      id: row.id,
-      category: row.category,
-      description: row.description,
-      status: row.status,
-      createdAt: row.createdAt,
-      tripId: row.tripId,
-      trip: row.trip,
-      reporter: row.reporter,
-      reportedDriver: row.reportedDriver
-        ? { id: row.reportedDriver.id, name: row.reportedDriver.user.name }
-        : null,
-    }));
+    const { take, skip } = paginationParams(page, limit);
+    const where = status ? { status: status as IncidentReportStatus } : {};
+
+    const [rows, total] = await Promise.all([
+      this.prisma.incidentReport.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          reporter: { select: { id: true, name: true } },
+          reportedDriver: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+          trip: { select: { destinationAddress: true } },
+        },
+        take,
+        skip,
+      }),
+      this.prisma.incidentReport.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        category: row.category,
+        description: row.description,
+        status: row.status,
+        createdAt: row.createdAt,
+        tripId: row.tripId,
+        trip: row.trip,
+        reporter: row.reporter,
+        reportedDriver: row.reportedDriver
+          ? { id: row.reportedDriver.id, name: row.reportedDriver.user.name }
+          : null,
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   async markReviewed(id: string) {
+    const existing = await this.prisma.incidentReport.findUnique({
+      where: { id },
+    });
+    if (!existing) throw new NotFoundException('Incident report not found');
+
     await this.prisma.incidentReport.update({
       where: { id },
       data: { status: 'reviewed' },

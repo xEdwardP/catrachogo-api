@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsString, Matches, MinLength } from 'class-validator';
 
 export enum RegisterRole {
   passenger = 'passenger',
@@ -8,7 +8,10 @@ export enum RegisterRole {
 export class RegisterDto {
   @IsString() name!: string;
   @IsEmail() email!: string;
-  @IsString() phone!: string;
+  @Matches(/^\+?[0-9]{8,15}$/, {
+    message: 'Phone must be a valid number (8-15 digits, optional +)',
+  })
+  phone!: string;
   @MinLength(8) password!: string;
   @IsEnum(RegisterRole) role!: RegisterRole;
 }

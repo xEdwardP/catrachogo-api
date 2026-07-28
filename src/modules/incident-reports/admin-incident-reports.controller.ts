@@ -10,7 +10,6 @@ import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { IncidentReportsService } from './incident-reports.service';
-import type { IncidentReportStatus } from '../../../generated/prisma/client';
 
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('admin')
@@ -19,8 +18,16 @@ export class AdminIncidentReportsController {
   constructor(private incidentReportsService: IncidentReportsService) {}
 
   @Get()
-  list(@Query('status') status?: IncidentReportStatus) {
-    return this.incidentReportsService.listForAdmin(status);
+  list(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.incidentReportsService.listForAdmin(
+      status,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Patch(':id/review')
