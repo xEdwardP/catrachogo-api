@@ -76,8 +76,16 @@ export class AdminWithdrawalsController {
   constructor(private walletService: WalletService) {}
 
   @Get()
-  list(@Query('status') status?: string) {
-    return this.walletService.listWithdrawals(status);
+  list(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.walletService.listWithdrawals(
+      status,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Patch(':id')

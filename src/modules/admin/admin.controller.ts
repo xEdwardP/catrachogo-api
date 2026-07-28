@@ -36,8 +36,16 @@ export class AdminController {
   }
 
   @Get('drivers')
-  listDrivers(@Query('status') status?: string) {
-    return this.driversService.listByStatus(status);
+  listDrivers(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.driversService.listByStatus(
+      status,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Get('drivers/:id')
