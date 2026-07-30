@@ -95,6 +95,7 @@ model User {
   role            Role
   createdAt       DateTime @default(now()) @map("created_at")
   isActive        Boolean  @default(true) @map("is_active")
+  pushToken       String?  @map("push_token")
 
   driver               Driver?
   wallet               Wallet?

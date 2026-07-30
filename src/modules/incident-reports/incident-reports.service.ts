@@ -5,13 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateIncidentReportDto } from './dto/create-incident-report.dto';
 import { IncidentReportStatus } from '../../../generated/prisma/client';
 import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
 export class IncidentReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
 
   async create(reporterId: string, dto: CreateIncidentReportDto) {
     const trip = await this.prisma.trip.findUnique({
@@ -31,6 +35,13 @@ export class IncidentReportsService {
         description: dto.description,
       },
     });
+
+    await this.notifications.pushToAdmins(
+      'Nuevo reporte de incidencia',
+      `Categoría: ${dto.category}`,
+      { type: 'incident_report_submitted', reportId: report.id },
+    );
+
     return { id: report.id };
   }
 

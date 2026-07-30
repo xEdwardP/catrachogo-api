@@ -140,6 +140,19 @@ export class TripsService {
     );
     this.candidatesCache.set(trip.id, nearbyDriverIds);
 
+    if (nearbyDriverIds.length > 0) {
+      const nearbyDrivers = await this.prisma.driver.findMany({
+        where: { id: { in: nearbyDriverIds } },
+        select: { userId: true },
+      });
+      await this.notifications.pushOnly(
+        nearbyDrivers.map((driver) => driver.userId),
+        'Nuevo viaje cercano',
+        `Viaje a ${dto.destinationAddress}`,
+        { type: 'trip_request', tripId: trip.id },
+      );
+    }
+
     return this.toTripNumbers(trip);
   }
 
