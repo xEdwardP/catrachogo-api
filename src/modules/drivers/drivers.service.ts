@@ -32,7 +32,7 @@ export class DriversService {
     if (existing)
       throw new ConflictException('Driver profile already completed');
 
-    return this.prisma.$transaction(async (tx) => {
+    const driver = await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
         data: { profilePhotoUrl: dto.profilePhotoUrl },
@@ -51,6 +51,14 @@ export class DriversService {
         },
       });
     });
+
+    await this.notifications.pushToAdmins(
+      'Nuevo conductor pendiente',
+      'Un conductor completó su perfil y espera aprobación de documentos.',
+      { type: 'driver_pending_approval', driverId: driver.id },
+    );
+
+    return driver;
   }
 
   async updateAvailability(driverId: string, available: boolean) {
