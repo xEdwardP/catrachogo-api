@@ -5,8 +5,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class TrackingService {
   constructor(private prisma: PrismaService) {}
 
-  async recordLocation(driverId: string, lat: number, lng: number, tripId?: string) {
-    await this.prisma.locationTracking.create({ data: { driverId, lat, lng, tripId } });
+  async recordLocation(
+    driverId: string,
+    lat: number,
+    lng: number,
+    tripId?: string,
+  ) {
+    await this.prisma.locationTracking.create({
+      data: { driverId, lat, lng, tripId },
+    });
     return { recorded: true };
   }
 

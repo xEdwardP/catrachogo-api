@@ -1,18 +1,67 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
+import { DriversService } from '../drivers/drivers.service';
+import { TripsService } from '../trips/trips.service';
+import { AdminService } from './admin.service';
 
 describe('AdminController', () => {
   let controller: AdminController;
+  let driversService: jest.Mocked<
+    Pick<
+      DriversService,
+      'listByStatus' | 'getByIdForAdmin' | 'updateVerification'
+    >
+  >;
+  let tripsService: jest.Mocked<Pick<TripsService, 'listAll'>>;
+  let adminService: jest.Mocked<Pick<AdminService, 'getStats'>>;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AdminController],
-    }).compile();
+  beforeEach(() => {
+    driversService = {
+      listByStatus: jest.fn(),
+      getByIdForAdmin: jest.fn(),
+      updateVerification: jest.fn(),
+    };
+    tripsService = { listAll: jest.fn() };
+    adminService = { getStats: jest.fn() };
 
-    controller = module.get<AdminController>(AdminController);
+    controller = new AdminController(
+      driversService as unknown as DriversService,
+      tripsService as unknown as TripsService,
+      adminService as unknown as AdminService,
+    );
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('delegates dashboard stats to AdminService', () => {
+    controller.getStats();
+    expect(adminService.getStats).toHaveBeenCalled();
+  });
+
+  it('defaults pagination to page 1 / limit 20 when listing drivers', () => {
+    controller.listDrivers(undefined, undefined, undefined);
+    expect(driversService.listByStatus).toHaveBeenCalledWith(undefined, 1, 20);
+  });
+
+  it('parses page/limit query params when listing drivers', () => {
+    controller.listDrivers('approved', '3', '50');
+    expect(driversService.listByStatus).toHaveBeenCalledWith('approved', 3, 50);
+  });
+
+  it('delegates single driver lookup by id', () => {
+    controller.getDriver('driver-1');
+    expect(driversService.getByIdForAdmin).toHaveBeenCalledWith('driver-1');
+  });
+
+  it('delegates verification updates with the requested status', () => {
+    controller.updateVerification('driver-1', {
+      verificationStatus: 'approved',
+    });
+    expect(driversService.updateVerification).toHaveBeenCalledWith(
+      'driver-1',
+      'approved',
+    );
+  });
+
+  it('defaults pagination to page 1 / limit 20 when listing trips', () => {
+    controller.listTrips(undefined, undefined, undefined);
+    expect(tripsService.listAll).toHaveBeenCalledWith(undefined, 1, 20);
   });
 });

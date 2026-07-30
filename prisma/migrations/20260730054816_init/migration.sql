@@ -22,6 +22,12 @@ CREATE TYPE "NotificationType" AS ENUM ('trip_accepted', 'trip_started', 'trip_c
 -- CreateEnum
 CREATE TYPE "SavedAddressLabel" AS ENUM ('home', 'work', 'other');
 
+-- CreateEnum
+CREATE TYPE "IncidentReportCategory" AS ENUM ('safety', 'driver_behavior', 'vehicle_condition', 'payment', 'other');
+
+-- CreateEnum
+CREATE TYPE "IncidentReportStatus" AS ENUM ('pending', 'reviewed');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -34,6 +40,7 @@ CREATE TABLE "users" (
     "role" "Role" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "push_token" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -87,6 +94,7 @@ CREATE TABLE "trips" (
     "arrived_at" TIMESTAMP(3),
     "started_at" TIMESTAMP(3),
     "completed_at" TIMESTAMP(3),
+    "cancel_reason" TEXT,
 
     CONSTRAINT "trips_pkey" PRIMARY KEY ("id")
 );
@@ -192,6 +200,20 @@ CREATE TABLE "saved_addresses" (
     CONSTRAINT "saved_addresses_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "incident_reports" (
+    "id" TEXT NOT NULL,
+    "reporter_id" TEXT NOT NULL,
+    "trip_id" TEXT,
+    "reported_driver_id" TEXT,
+    "category" "IncidentReportCategory" NOT NULL,
+    "description" TEXT NOT NULL,
+    "status" "IncidentReportStatus" NOT NULL DEFAULT 'pending',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "incident_reports_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -263,3 +285,12 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_related_trip_id_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "saved_addresses" ADD CONSTRAINT "saved_addresses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "incident_reports" ADD CONSTRAINT "incident_reports_reporter_id_fkey" FOREIGN KEY ("reporter_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "incident_reports" ADD CONSTRAINT "incident_reports_trip_id_fkey" FOREIGN KEY ("trip_id") REFERENCES "trips"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "incident_reports" ADD CONSTRAINT "incident_reports_reported_driver_id_fkey" FOREIGN KEY ("reported_driver_id") REFERENCES "drivers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
