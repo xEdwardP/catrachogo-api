@@ -32,4 +32,21 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // Unit test mocks are plain objects built with jest.fn() and cast with
+    // `as unknown as X` — strict unsafe-* checks add friction here without
+    // catching real bugs, since the mocked shape is verified by the tests
+    // themselves (a wrong call signature fails the assertion, not the type
+    // checker).
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      // False positive on `expect(mockedService.method).toHaveBeenCalledWith(...)`
+      // — typescript-eslint's own docs call this out as a known Jest false positive.
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );
