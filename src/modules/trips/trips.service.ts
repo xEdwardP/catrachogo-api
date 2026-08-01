@@ -482,6 +482,11 @@ export class TripsService {
       destinationLat: Number(trip.destinationLat),
       destinationLng: Number(trip.destinationLng),
       driverId: trip.driverId,
+      requestedAt: trip.requestedAt,
+      arrivedAt: trip.arrivedAt,
+      startedAt: trip.startedAt,
+      completedAt: trip.completedAt,
+      cancelReason: trip.cancelReason,
       ratedByMe,
       ...(includePhones && trip.driver
         ? {

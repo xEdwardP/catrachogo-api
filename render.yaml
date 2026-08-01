@@ -26,7 +26,7 @@ services:
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: PAYPAL_MODE
-        value: live
+        value: sandbox
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
