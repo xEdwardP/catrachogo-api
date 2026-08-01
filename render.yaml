@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: catrachogo-api
+    runtime: node
+    plan: starter
+    region: ohio
+    branch: main
+    buildCommand: npm ci && npx prisma generate && npm run build
+    preDeployCommand: DATABASE_URL=$DIRECT_URL npx prisma migrate deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "604800"
+      - key: JWT_EXPIRES_IN_MOBILE
+        value: "2592000"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MODE
+        value: live
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_ID_MOBILE
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: PLATFORM_USER_ID
+        sync: false
+      - key: PLATFORM_COMMISSION_RATE
+        value: "0.10"
+      - key: CANCELLATION_FEE_AMOUNT
+        value: "25.00"
+      - key: CANCELLATION_FEE_DRIVER_SHARE
+        value: "0.8"
+      - key: NO_SHOW_GRACE_PERIOD_MINUTES
+        value: "5"
