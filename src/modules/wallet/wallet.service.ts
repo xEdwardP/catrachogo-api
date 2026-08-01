@@ -7,7 +7,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PaypalService } from './paypal.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { paginationParams } from '../../common/utils/pagination.util';
-import { WithdrawalStatus } from '../../../generated/prisma/client';
+import {
+  Prisma,
+  WithdrawalStatus,
+} from '../../../generated/prisma/client';
 
 @Injectable()
 export class WalletService {
@@ -117,7 +120,12 @@ export class WalletService {
     });
   }
 
-  async listWithdrawals(status?: string, page = 1, limit = 20) {
+  async listWithdrawals(
+    status?: string,
+    page = 1,
+    limit = 20,
+    search?: string,
+  ) {
     if (
       status &&
       !Object.values(WithdrawalStatus).includes(status as WithdrawalStatus)
@@ -128,7 +136,21 @@ export class WalletService {
     }
 
     const { take, skip } = paginationParams(page, limit);
-    const where = status ? { status: status as WithdrawalStatus } : {};
+    const where: Prisma.WithdrawalRequestWhereInput = {
+      ...(status ? { status: status as WithdrawalStatus } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                driver: {
+                  user: { name: { contains: search, mode: 'insensitive' } },
+                },
+              },
+              { paypalEmail: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
 
     const [withdrawals, total] = await Promise.all([
       this.prisma.withdrawalRequest.findMany({

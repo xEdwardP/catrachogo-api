@@ -37,12 +37,32 @@ describe('AdminController', () => {
 
   it('defaults pagination to page 1 / limit 20 when listing drivers', () => {
     controller.listDrivers(undefined, undefined, undefined);
-    expect(driversService.listByStatus).toHaveBeenCalledWith(undefined, 1, 20);
+    expect(driversService.listByStatus).toHaveBeenCalledWith(
+      undefined,
+      1,
+      20,
+      undefined,
+    );
   });
 
   it('parses page/limit query params when listing drivers', () => {
     controller.listDrivers('approved', '3', '50');
-    expect(driversService.listByStatus).toHaveBeenCalledWith('approved', 3, 50);
+    expect(driversService.listByStatus).toHaveBeenCalledWith(
+      'approved',
+      3,
+      50,
+      undefined,
+    );
+  });
+
+  it('passes the search query param when listing drivers', () => {
+    controller.listDrivers('approved', '1', '20', 'juan');
+    expect(driversService.listByStatus).toHaveBeenCalledWith(
+      'approved',
+      1,
+      20,
+      'juan',
+    );
   });
 
   it('delegates single driver lookup by id', () => {
