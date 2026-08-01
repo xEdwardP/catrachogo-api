@@ -2,7 +2,7 @@ services:
   - type: web
     name: catrachogo-api
     runtime: node
-    plan: starter
+    plan: free
     region: ohio
     branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
