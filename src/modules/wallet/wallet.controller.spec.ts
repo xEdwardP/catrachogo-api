@@ -82,6 +82,17 @@ describe('AdminWithdrawalsController', () => {
       undefined,
       1,
       20,
+      undefined,
+    );
+  });
+
+  it('passes the search query param when listing withdrawals', () => {
+    controller.list('pending', '1', '20', 'jane@example.com');
+    expect(walletService.listWithdrawals).toHaveBeenCalledWith(
+      'pending',
+      1,
+      20,
+      'jane@example.com',
     );
   });
 

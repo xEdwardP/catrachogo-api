@@ -9,7 +9,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TripCandidatesCache } from '../matching/trip-candidates.cache';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CompleteProfileDto } from './dto/complete-profile.dto';
-import { VerificationStatus } from '../../../generated/prisma/client';
+import {
+  Prisma,
+  VerificationStatus,
+} from '../../../generated/prisma/client';
 import { paginationParams } from '../../common/utils/pagination.util';
 
 @Injectable()
@@ -171,7 +174,12 @@ export class DriversService {
     return { ...driver, averageRating: Number(driver.averageRating ?? 0) };
   }
 
-  async listByStatus(status?: string, page = 1, limit = 20) {
+  async listByStatus(
+    status?: string,
+    page = 1,
+    limit = 20,
+    search?: string,
+  ) {
     if (
       status &&
       !Object.values(VerificationStatus).includes(status as VerificationStatus)
@@ -182,9 +190,21 @@ export class DriversService {
     }
 
     const { take, skip } = paginationParams(page, limit);
-    const where = status
-      ? { verificationStatus: status as VerificationStatus }
-      : {};
+    const where: Prisma.DriverWhereInput = {
+      ...(status ? { verificationStatus: status as VerificationStatus } : {}),
+      ...(search
+        ? {
+            OR: [
+              { user: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                vehicles: {
+                  some: { plate: { contains: search, mode: 'insensitive' } },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
 
     const [drivers, total] = await Promise.all([
       this.prisma.driver.findMany({

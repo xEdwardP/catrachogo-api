@@ -40,11 +40,13 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ) {
     return this.driversService.listByStatus(
       status,
       Number(page) || 1,
       Number(limit) || 20,
+      search,
     );
   }
 
