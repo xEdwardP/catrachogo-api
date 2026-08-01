@@ -5,13 +5,12 @@ services:
     plan: free
     region: ohio
     branch: main
-    buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: DATABASE_URL=$DIRECT_URL npx prisma migrate deploy
+    buildCommand: npm ci && npx prisma generate && DATABASE_URL=$DIRECT_URL npx prisma migrate deploy && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
-        value: 22
+        value: "22"
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
