@@ -18,6 +18,7 @@ import { GoogleAuthService } from './google-auth.service';
 import { UpdateProfilePhotoDto } from './dto/update-profile-photo.dto';
 import { CompletePhoneDto } from './dto/complete-phone.dto';
 import { UpdateNameDto } from './dto/update-name.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -78,6 +79,16 @@ export class AuthController {
   @Patch('name')
   updateName(@Request() req, @Body() dto: UpdateNameDto) {
     return this.authService.updateName(req.user.userId, dto.name);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('password')
+  updatePassword(@Request() req, @Body() dto: UpdatePasswordDto) {
+    return this.authService.updatePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
