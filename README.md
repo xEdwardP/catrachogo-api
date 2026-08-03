@@ -193,6 +193,7 @@ Los endpoints paginados devuelven `{ data, total, page, limit }` (query params `
 | PATCH | `/auth/profile-photo` | JWT | `{ profilePhotoUrl }` (URL de Cloudinary) | Actualiza la foto de perfil y borra la anterior en Cloudinary |
 | PATCH | `/auth/name` | JWT | `{ name }` (2-80 caracteres) | Actualiza el nombre |
 | PATCH | `/auth/phone` | JWT | `{ phone }` (8-15 dígitos, `+` opcional) | Completa/actualiza el teléfono. `409` si el número ya está en uso por otro usuario |
+| PATCH | `/auth/password` | JWT | `{ currentPassword, newPassword (≥8) }` | `401` si la cuenta es de Google Sign-In (sin `passwordHash`) o si `currentPassword` no verifica. No invalida el JWT actual ni cierra sesión en otros dispositivos |
 | GET | `/auth/profile` | JWT | — | `{ id, name, email, phone, role, profilePhotoUrl, createdAt }` |
 
 ### Drivers (`/drivers`)
@@ -286,11 +287,11 @@ Los endpoints paginados devuelven `{ data, total, page, limit }` (query params `
 | Método | Ruta | Auth | Body | Descripción |
 |---|---|---|---|---|
 | GET | `/admin/stats` | Admin | — | `{ tripsByStatus, revenueToday, tripsCompletedToday, availableDrivers, pendingDrivers, pendingWithdrawals, dailyCompleted[14] }` — todo calculado con agregaciones de Prisma, sin muestreo |
-| GET | `/admin/drivers` | Admin | Query `status?`, `page?`, `limit?` | Lista paginada de conductores (con `user` y `vehicles`, sin `passwordHash`), filtrable por `verificationStatus` |
+| GET | `/admin/drivers` | Admin | Query `status?`, `page?`, `limit?`, `search?` | Lista paginada de conductores (con `user` y `vehicles`, sin `passwordHash`), filtrable por `verificationStatus`. `search` matchea `user.name` o `vehicles.plate` (`ILIKE`, insensible a mayúsculas) |
 | GET | `/admin/drivers/:id` | Admin | — | Detalle de un solo conductor (mismo shape que un elemento de la lista). `404` si no existe |
 | PATCH | `/admin/drivers/:id/verification` | Admin | `{ verificationStatus: approved\|rejected }` | Aprueba o rechaza documentos; setea `approvedAt`. `404` si el conductor no existe |
 | GET | `/admin/trips` | Admin | Query `status?`, `page?`, `limit?` | Listado paginado de todos los viajes |
-| GET | `/admin/withdrawals` | Admin | Query `status?`, `page?`, `limit?` | Lista paginada de solicitudes de retiro (con `driver.user`, sin `passwordHash`) |
+| GET | `/admin/withdrawals` | Admin | Query `status?`, `page?`, `limit?`, `search?` | Lista paginada de solicitudes de retiro (con `driver.user`, sin `passwordHash`). `search` matchea `driver.user.name` o `paypalEmail` |
 | PATCH | `/admin/withdrawals/:id` | Admin | `{ status: completed\|rejected }` | Si `rejected`, reembolsa el saldo al conductor en la misma operación |
 | GET | `/admin/platform-wallet` | Admin | — | `{ balance }` de la wallet de plataforma |
 | GET | `/admin/platform-wallet/transactions` | Admin | Query `page`, `limit` | Historial paginado de la wallet de plataforma |
