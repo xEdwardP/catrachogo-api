@@ -25,6 +25,7 @@ describe('DriversService', () => {
     prisma = {
       driver: { findUnique: jest.fn(), update: jest.fn() },
       $transaction: jest.fn((cb: any) => cb(tx)),
+      $queryRaw: jest.fn(),
     };
     candidatesCache = { getPendingFor: jest.fn() };
     notifications = { create: jest.fn(), pushToAdmins: jest.fn() };
@@ -177,6 +178,23 @@ describe('DriversService', () => {
           driverId: 'driver-1',
         }),
       );
+    });
+  });
+
+  describe('findNearby', () => {
+    it('orders candidates by real distance, not by driver UUID', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { driver_id: 'driver-close' },
+        { driver_id: 'driver-far' },
+      ]);
+
+      const result = await service.findNearby(14.1, -87.2, 5, 5);
+
+      expect(result).toEqual(['driver-close', 'driver-far']);
+      const [query] = prisma.$queryRaw.mock.calls[0];
+      const sql = query.join('');
+      expect(sql).toContain('ST_Distance');
+      expect(sql).toContain('ORDER BY distance_m ASC');
     });
   });
 

@@ -88,16 +88,19 @@ export class DriversService {
     limit = 5,
   ): Promise<string[]> {
     const rows = await this.prisma.$queryRaw<{ driver_id: string }[]>`
-      SELECT DISTINCT ON (d.id) d.id AS driver_id
-      FROM drivers d
-      JOIN location_tracking lt ON lt.driver_id = d.id
-      WHERE d.available = true
-        AND ST_DWithin(
-          ST_SetSRID(ST_MakePoint(lt.lng, lt.lat), 4326)::geography,
-          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-          ${radiusKm * 1000}
-        )
-      ORDER BY d.id, lt.recorded_at DESC
+      SELECT driver_id FROM (
+        SELECT DISTINCT ON (d.id) d.id AS driver_id, lt.lat, lt.lng, lt.recorded_at,
+          ST_Distance(
+            ST_SetSRID(ST_MakePoint(lt.lng, lt.lat), 4326)::geography,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+          ) AS distance_m
+        FROM drivers d
+        JOIN location_tracking lt ON lt.driver_id = d.id
+        WHERE d.available = true
+        ORDER BY d.id, lt.recorded_at DESC
+      ) latest
+      WHERE distance_m <= ${radiusKm * 1000}
+      ORDER BY distance_m ASC
       LIMIT ${limit}
     `;
     return rows.map((r) => r.driver_id);
